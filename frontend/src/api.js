@@ -31,3 +31,10 @@ export async function deleteTradeById(id) {
   const res = await fetch(`${API_URL}/trades/${id}`, { method: "DELETE" });
   return handleResponse(res);
 }
+
+export async function fetchHistory(baseAsset, interval = "1d", limit = 90) {
+  const res = await fetch(
+    `${API_URL}/history?base_asset=${encodeURIComponent(baseAsset)}&interval=${interval}&limit=${limit}`
+  );
+  return handleResponse(res);
+}

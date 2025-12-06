@@ -1,4 +1,4 @@
-export default function TradesTable({ trades = [], onDelete, fiatCurrency = "EUR" }) {
+export default function TradesTable({ trades = [], onDelete, onRefresh, fiatCurrency = "EUR" }) {
   return (
     <div className="card glass">
       <div className="card-header">
@@ -6,7 +6,12 @@ export default function TradesTable({ trades = [], onDelete, fiatCurrency = "EUR
           <p className="eyebrow">Histórico</p>
           <h3>Operaciones</h3>
         </div>
-        <span className="pill">{trades.length} ops</span>
+        <div className="actions">
+          <button className="ghost" onClick={onRefresh}>
+            Actualizar precios
+          </button>
+          <span className="pill">{trades.length} ops</span>
+        </div>
       </div>
       <div className="table">
         <div className="table-head">

@@ -11,6 +11,7 @@ App to record crypto buys (precio y coste en EUR) y consultar PnL con precios en
    - `POST /trades` `{ base_symbol, quantity, price_fiat, total_cost_fiat? }`
    - `DELETE /trades/{id}`
    - `GET /portfolio`
+   - `GET /history?base_asset=BTC&interval=1d&limit=90`
    - `GET /health`
 
 ## Frontend (React + Vite)

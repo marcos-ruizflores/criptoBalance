@@ -12,6 +12,7 @@ from trades_service import (
     to_public_trade,
 )
 from portfolio_service import compute_portfolio
+from binance_client import get_asset_history
 
 
 app = FastAPI(title="CriptoBalance API", version="1.0.0")
@@ -70,3 +71,14 @@ def remove_trade(trade_id: str):
 @app.get("/portfolio")
 def get_portfolio():
     return compute_portfolio()
+
+
+@app.get("/history")
+def get_history(base_asset: str, interval: str = "1d", limit: int = 90):
+    if not base_asset:
+        raise HTTPException(status_code=400, detail="base_asset requerido")
+    try:
+        data = get_asset_history(base_asset, interval=interval, limit=limit)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return data

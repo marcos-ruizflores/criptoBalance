@@ -44,10 +44,8 @@ def compute_portfolio():
         avg_price_fiat = total_cost_fiat / total_quantity if total_quantity else 0.0
 
         current_price_quote, quote_used = get_price_for_asset(base_asset)
-        if quote_used.upper() == FIAT_CURRENCY.upper():
-            current_price_fiat = current_price_quote
-        else:
-            current_price_fiat = current_price_quote * FIAT_RATE
+        conversion_rate = 1.0 if quote_used.upper() == FIAT_CURRENCY.upper() else float(FIAT_RATE)
+        current_price_fiat = current_price_quote * conversion_rate
         current_value_fiat = current_price_fiat * total_quantity
         pnl_fiat = current_value_fiat - total_cost_fiat
         pnl_pct = (pnl_fiat / total_cost_fiat * 100) if total_cost_fiat else 0.0
