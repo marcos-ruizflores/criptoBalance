@@ -40,6 +40,14 @@ def list_trades():
     return list(trades_col().find())
 
 
+def get_trade(trade_id: str) -> Optional[dict]:
+    try:
+        oid = ObjectId(trade_id)
+    except Exception as exc:
+        raise ValueError("ID de operación no válido") from exc
+    return trades_col().find_one({"_id": oid})
+
+
 def delete_trade(trade_id: str) -> bool:
     """
     Elimina una operación por su _id. Devuelve True si se borró una.
@@ -95,3 +103,15 @@ def enrich_trade_with_market(trade: dict) -> dict:
 
 def list_trades_with_market():
     return [enrich_trade_with_market(t) for t in list_trades()]
+
+
+def to_public_trade(trade: dict) -> dict:
+    """
+    Convierte _id a str para respuestas JSON.
+    """
+    if not trade:
+        return trade
+    trade = {**trade}
+    if "_id" in trade:
+        trade["_id"] = str(trade["_id"])
+    return trade
