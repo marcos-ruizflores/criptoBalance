@@ -1,20 +1,20 @@
+from dotenv import load_dotenv
 import os
 
-# Valores de configuración básicos. Sobrescribir mediante variables de entorno si es necesario.
+load_dotenv()
+
+# Conexión a MongoDB local
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
-MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "criptoBalance")
+MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "crypto_portfolio")
 
-# Operamos siempre contra el par con esta divisa de cotización.
-DEFAULT_QUOTE_ASSET = os.getenv("DEFAULT_QUOTE_ASSET", "USDT")
+# Configuración general del proyecto
+DEFAULT_QUOTE_ASSET = "USDT"
+FIAT_CURRENCY = "EUR"
+FIAT_RATE = 1.0  # 1 USDT = 1 EUR (aproximación)
 
-# Conversión aproximada de USDT a moneda fiat para mostrar métricas.
-FIAT_CURRENCY = os.getenv("FIAT_CURRENCY", "EUR")
-FIAT_RATE = float(os.getenv("FIAT_RATE", "0.92"))
-
-__all__ = [
-    "MONGO_URI",
-    "MONGO_DB_NAME",
-    "DEFAULT_QUOTE_ASSET",
-    "FIAT_CURRENCY",
-    "FIAT_RATE",
-]
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT="587"
+SMTP_USER="marcos"
+SMTP_PASSWORD="root"
+EMAIL_FROM="ruizflores200212@gmail.com"
+ALERT_EMAIL_TO="marcos20028e@gmail.com"

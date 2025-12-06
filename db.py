@@ -6,3 +6,11 @@ db = client[MONGO_DB_NAME]
 
 def trades_col():
     return db["trades"]
+
+
+def snapshots_col():
+    return db["snapshots"]
+
+
+def alerts_col():
+    return db["alerts"]

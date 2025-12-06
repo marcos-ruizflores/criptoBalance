@@ -54,3 +54,42 @@ export async function importTrades(file) {
   });
   return handleResponse(res);
 }
+
+export async function fetchSnapshots() {
+  const res = await fetch(`${API_URL}/snapshots`);
+  return handleResponse(res);
+}
+
+export async function createSnapshot() {
+  const res = await fetch(`${API_URL}/snapshots`, { method: "POST" });
+  return handleResponse(res);
+}
+
+export async function deleteSnapshot(id) {
+  const res = await fetch(`${API_URL}/snapshots/${id}`, { method: "DELETE" });
+  return handleResponse(res);
+}
+
+export async function fetchAlerts() {
+  const res = await fetch(`${API_URL}/alerts`);
+  return handleResponse(res);
+}
+
+export async function createAlert(payload) {
+  const res = await fetch(`${API_URL}/alerts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
+export async function deleteAlertById(id) {
+  const res = await fetch(`${API_URL}/alerts/${id}`, { method: "DELETE" });
+  return handleResponse(res);
+}
+
+export async function evaluateAlerts() {
+  const res = await fetch(`${API_URL}/alerts/evaluate`, { method: "POST" });
+  return handleResponse(res);
+}

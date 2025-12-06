@@ -8,12 +8,19 @@ from binance_client import get_price_for_asset
 from config import DEFAULT_QUOTE_ASSET, FIAT_RATE, FIAT_CURRENCY
 
 
-def register_trade(base_symbol: str, quantity: float, price_fiat: float, total_cost_fiat: Optional[float] = None, timestamp=None):
+def register_trade(
+    base_symbol: str,
+    quantity: float,
+    price_fiat: float,
+    total_cost_fiat: Optional[float] = None,
+    timestamp=None,
+    side: str = "BUY",
+):
     """
-    Registra una compra de criptomoneda (precio y coste en EUR).
+    Registra una operación de criptomoneda (BUY/SELL) en EUR.
     """
     timestamp = timestamp or datetime.utcnow()
-
+    side = side.upper()
     base_symbol = base_symbol.upper()
     total_cost_fiat = total_cost_fiat if total_cost_fiat is not None else quantity * price_fiat
     price_quote = price_fiat / FIAT_RATE
@@ -23,7 +30,7 @@ def register_trade(base_symbol: str, quantity: float, price_fiat: float, total_c
         "symbol": f"{base_symbol}{DEFAULT_QUOTE_ASSET}",
         "base_asset": base_symbol,
         "quote_asset": DEFAULT_QUOTE_ASSET,
-        "side": "BUY",
+        "side": side,
         "quantity": float(quantity),
         "price_quote": float(price_quote),
         "price_fiat": float(price_fiat),
@@ -39,7 +46,7 @@ def register_trade(base_symbol: str, quantity: float, price_fiat: float, total_c
 
 
 def list_trades():
-    return list(trades_col().find())
+    return list(trades_col().find().sort("timestamp", 1))
 
 
 def get_trade(trade_id: str) -> Optional[dict]:
@@ -139,6 +146,7 @@ def export_trades_csv(trades: Optional[list] = None) -> str:
                 t.get("quantity"),
                 t.get("price_fiat") or "",
                 t.get("total_cost_fiat") or "",
+                t.get("side", "BUY"),
                 t.get("timestamp"),
             ]
         )
@@ -147,7 +155,7 @@ def export_trades_csv(trades: Optional[list] = None) -> str:
 
 def import_trades_csv(csv_text: str) -> int:
     """
-    Importa operaciones desde CSV con cabecera base_symbol, quantity, price_fiat, total_cost_fiat, timestamp (opcional).
+    Importa operaciones desde CSV con cabecera base_symbol, quantity, price_fiat, total_cost_fiat, side (BUY/SELL), timestamp (opcional).
     Devuelve número de operaciones creadas.
     """
     reader = csv.DictReader(io.StringIO(csv_text))
@@ -158,6 +166,7 @@ def import_trades_csv(csv_text: str) -> int:
         price_fiat = float(row.get("price_fiat", 0) or 0)
         total_cost_fiat_val = row.get("total_cost_fiat")
         total_cost_fiat = float(total_cost_fiat_val) if total_cost_fiat_val not in (None, "",) else None
+        side_val = row.get("side", "BUY").upper()
         ts_val = row.get("timestamp")
         timestamp = None
         if ts_val:
@@ -167,6 +176,6 @@ def import_trades_csv(csv_text: str) -> int:
                 timestamp = None
         if not base_symbol or quantity <= 0 or price_fiat <= 0:
             continue
-        register_trade(base_symbol, quantity, price_fiat, total_cost_fiat, timestamp)
+        register_trade(base_symbol, quantity, price_fiat, total_cost_fiat, timestamp, side=side_val)
         created += 1
     return created

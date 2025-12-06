@@ -1,5 +1,10 @@
-export default function PortfolioGrid({ items = [], fiatCurrency = "EUR", onRefresh }) {
-  const totalPnl = items.reduce((acc, item) => acc + Number(item.pnl_fiat || 0), 0);
+const fmt = (v, digits = 2) => (Number.isFinite(v) ? v.toFixed(digits) : "-");
+
+export default function PortfolioGrid({ items = [], totals = {}, fiatCurrency = "EUR", onRefresh }) {
+  const totalPnl = Number(totals.total_pnl_fiat);
+  const totalValue = Number(totals.total_value_fiat);
+  const totalRealized = Number(totals.total_realized_pnl_fiat);
+  const totalUnrealized = Number(totals.total_unrealized_pnl_fiat);
   return (
     <div className="card glass">
       <div className="card-header">
@@ -11,8 +16,10 @@ export default function PortfolioGrid({ items = [], fiatCurrency = "EUR", onRefr
           <div className="balance-total">
             <p className="eyebrow">Balance total</p>
             <div className={`balance-number ${totalPnl >= 0 ? "pos" : "neg"}`}>
-              {totalPnl.toFixed(2)} {fiatCurrency}
+              {fmt(totalPnl)} {fiatCurrency}
             </div>
+            <div className="muted small">Valor actual: {fmt(totalValue)} {fiatCurrency}</div>
+            <div className="muted small">Realizado: {fmt(totalRealized)} · No realizado: {fmt(totalUnrealized)}</div>
           </div>
           <button className="ghost" onClick={onRefresh}>
             Actualizar precios

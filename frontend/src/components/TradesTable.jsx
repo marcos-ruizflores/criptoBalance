@@ -1,4 +1,9 @@
-export default function TradesTable({ trades = [], onDelete, onRefresh, fiatCurrency = "EUR" }) {
+export default function TradesTable({ trades = [], filter = "all", onFilterChange, onDelete, onRefresh, fiatCurrency = "EUR" }) {
+  const filtered = trades.filter((t) => {
+    if (filter === "buy") return t.side === "BUY";
+    if (filter === "sell") return t.side === "SELL";
+    return true;
+  });
   return (
     <div className="card glass">
       <div className="card-header">
@@ -7,27 +12,34 @@ export default function TradesTable({ trades = [], onDelete, onRefresh, fiatCurr
           <h3>Operaciones</h3>
         </div>
         <div className="actions">
+          <div className="pill">
+            <button className={filter === "all" ? "chip active" : "chip"} onClick={() => onFilterChange?.("all")}>Todas</button>
+            <button className={filter === "buy" ? "chip active" : "chip"} onClick={() => onFilterChange?.("buy")}>Compras</button>
+            <button className={filter === "sell" ? "chip active" : "chip"} onClick={() => onFilterChange?.("sell")}>Ventas</button>
+          </div>
           <button className="ghost" onClick={onRefresh}>
             Actualizar precios
           </button>
-          <span className="pill">{trades.length} ops</span>
+          <span className="pill">{filtered.length} ops</span>
         </div>
       </div>
       <div className="table">
         <div className="table-head">
           <span>ID</span>
           <span>Cripto</span>
+          <span>Tipo</span>
           <span>Cantidad</span>
-          <span>Precio compra</span>
-          <span>Coste total</span>
+          <span>Precio</span>
+          <span>Importe</span>
           <span>Precio ahora</span>
           <span>PnL</span>
           <span></span>
         </div>
-        {trades.map((t) => (
+        {filtered.map((t) => (
           <div className="table-row" key={t._id}>
             <span className="mono">{t._id}</span>
             <span>{t.base_asset}</span>
+            <span>{t.side}</span>
             <span>{Number(t.quantity).toLocaleString()}</span>
             <span>
               {Number(t.price_fiat).toFixed(4)} {fiatCurrency}

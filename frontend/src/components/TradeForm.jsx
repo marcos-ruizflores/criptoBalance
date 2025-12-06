@@ -6,6 +6,7 @@ export default function TradeForm({ onSubmit, fiatCurrency = "EUR", loading }) {
     quantity: "",
     price_fiat: "",
     total_cost_fiat: "",
+    side: "BUY",
   });
 
   const update = (key, value) => {
@@ -20,6 +21,7 @@ export default function TradeForm({ onSubmit, fiatCurrency = "EUR", loading }) {
       quantity: Number(form.quantity),
       price_fiat: Number(form.price_fiat),
       total_cost_fiat: form.total_cost_fiat ? Number(form.total_cost_fiat) : undefined,
+      side: form.side,
     });
   };
 
@@ -77,6 +79,13 @@ export default function TradeForm({ onSubmit, fiatCurrency = "EUR", loading }) {
             onChange={(e) => update("total_cost_fiat", e.target.value)}
             placeholder="Opcional"
           />
+        </label>
+        <label className="field">
+          <span>Tipo</span>
+          <select value={form.side} onChange={(e) => update("side", e.target.value)}>
+            <option value="BUY">Compra</option>
+            <option value="SELL">Venta</option>
+          </select>
         </label>
       </div>
     </form>

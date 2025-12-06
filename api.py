@@ -13,8 +13,10 @@ from trades_service import (
     export_trades_csv,
     import_trades_csv,
 )
-from portfolio_service import compute_portfolio
+from portfolio_service import compute_portfolio, portfolio_summary
 from binance_client import get_asset_history
+from snapshot_service import take_snapshot, list_snapshots, delete_snapshot
+from alerts_service import create_alert, list_alerts, delete_alert, evaluate_alerts
 from fastapi.responses import StreamingResponse
 import io
 
@@ -37,6 +39,14 @@ class TradeIn(BaseModel):
     total_cost_fiat: Optional[float] = Field(
         None, description="Coste total en fiat (opcional, se calcula si falta)"
     )
+    side: str = Field("BUY", description="BUY o SELL")
+
+
+class AlertIn(BaseModel):
+    base_asset: str
+    kind: str = Field(..., description="price o pnl_pct")
+    direction: str = Field(..., description="above o below")
+    threshold: float
 
 
 @app.get("/health")
@@ -57,6 +67,7 @@ def create_trade(payload: TradeIn):
         payload.quantity,
         payload.price_fiat,
         payload.total_cost_fiat,
+        side=payload.side,
     )
     trade = get_trade(str(trade_id))
     if not trade:
@@ -74,7 +85,7 @@ def remove_trade(trade_id: str):
 
 @app.get("/portfolio")
 def get_portfolio():
-    return compute_portfolio()
+    return portfolio_summary()
 
 
 @app.get("/history")
@@ -106,3 +117,44 @@ def import_trades(file: UploadFile = File(...)):
     content = file.file.read().decode("utf-8")
     created = import_trades_csv(content)
     return {"imported": created}
+
+
+@app.post("/snapshots", status_code=201)
+def create_snapshot():
+    return take_snapshot()
+
+
+@app.get("/snapshots")
+def get_snapshots(limit: int = 30):
+    return list_snapshots(limit)
+
+@app.delete("/snapshots/{snapshot_id}")
+def remove_snapshot(snapshot_id: str):
+    deleted = delete_snapshot(snapshot_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Snapshot no encontrado")
+    return {"deleted": True}
+
+
+@app.get("/alerts")
+def alerts():
+    return list_alerts()
+
+
+@app.post("/alerts", status_code=201)
+def add_alert(payload: AlertIn):
+    return create_alert(payload.base_asset, payload.kind, payload.direction, payload.threshold)
+
+
+@app.delete("/alerts/{alert_id}")
+def remove_alert(alert_id: str):
+    deleted = delete_alert(alert_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Alerta no encontrada")
+    return {"deleted": True}
+
+
+@app.post("/alerts/evaluate")
+def eval_alerts():
+    triggered = evaluate_alerts()
+    return {"triggered": triggered}
