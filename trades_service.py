@@ -1,4 +1,6 @@
 from datetime import datetime
+import io
+import csv
 from typing import Optional
 from bson import ObjectId
 from db import trades_col
@@ -112,3 +114,59 @@ def to_public_trade(trade: dict) -> dict:
     if "_id" in trade:
         trade["_id"] = str(trade["_id"])
     return trade
+
+
+def export_trades_csv(trades: Optional[list] = None) -> str:
+    """
+    Exporta operaciones a CSV.
+    """
+    trades = trades if trades is not None else list_trades()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "base_symbol",
+            "quantity",
+            "price_fiat",
+            "total_cost_fiat",
+            "timestamp",
+        ]
+    )
+    for t in trades:
+        writer.writerow(
+            [
+                t.get("base_asset") or t.get("symbol", "").removesuffix(DEFAULT_QUOTE_ASSET),
+                t.get("quantity"),
+                t.get("price_fiat") or "",
+                t.get("total_cost_fiat") or "",
+                t.get("timestamp"),
+            ]
+        )
+    return output.getvalue()
+
+
+def import_trades_csv(csv_text: str) -> int:
+    """
+    Importa operaciones desde CSV con cabecera base_symbol, quantity, price_fiat, total_cost_fiat, timestamp (opcional).
+    Devuelve número de operaciones creadas.
+    """
+    reader = csv.DictReader(io.StringIO(csv_text))
+    created = 0
+    for row in reader:
+        base_symbol = row.get("base_symbol") or row.get("symbol")
+        quantity = float(row.get("quantity", 0) or 0)
+        price_fiat = float(row.get("price_fiat", 0) or 0)
+        total_cost_fiat_val = row.get("total_cost_fiat")
+        total_cost_fiat = float(total_cost_fiat_val) if total_cost_fiat_val not in (None, "",) else None
+        ts_val = row.get("timestamp")
+        timestamp = None
+        if ts_val:
+            try:
+                timestamp = datetime.fromisoformat(ts_val)
+            except Exception:
+                timestamp = None
+        if not base_symbol or quantity <= 0 or price_fiat <= 0:
+            continue
+        register_trade(base_symbol, quantity, price_fiat, total_cost_fiat, timestamp)
+        created += 1
+    return created

@@ -38,3 +38,19 @@ export async function fetchHistory(baseAsset, interval = "1d", limit = 90) {
   );
   return handleResponse(res);
 }
+
+export async function exportTrades() {
+  const res = await fetch(`${API_URL}/trades/export`);
+  if (!res.ok) throw new Error(`Error HTTP ${res.status}`);
+  return res.blob();
+}
+
+export async function importTrades(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${API_URL}/trades/import`, {
+    method: "POST",
+    body: formData,
+  });
+  return handleResponse(res);
+}

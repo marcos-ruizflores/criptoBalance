@@ -1,5 +1,5 @@
 export default function PortfolioGrid({ items = [], fiatCurrency = "EUR", onRefresh }) {
-  const totalValue = items.reduce((acc, item) => acc + Number(item.current_value_fiat || 0), 0);
+  const totalPnl = items.reduce((acc, item) => acc + Number(item.pnl_fiat || 0), 0);
   return (
     <div className="card glass">
       <div className="card-header">
@@ -8,12 +8,16 @@ export default function PortfolioGrid({ items = [], fiatCurrency = "EUR", onRefr
           <h3>Portfolio</h3>
         </div>
         <div className="actions">
+          <div className="balance-total">
+            <p className="eyebrow">Balance total</p>
+            <div className={`balance-number ${totalPnl >= 0 ? "pos" : "neg"}`}>
+              {totalPnl.toFixed(2)} {fiatCurrency}
+            </div>
+          </div>
           <button className="ghost" onClick={onRefresh}>
             Actualizar precios
           </button>
-          <span className="pill">
-            {items.length} activos · Total {totalValue.toFixed(2)} {fiatCurrency}
-          </span>
+          <span className="pill">{items.length} activos</span>
         </div>
       </div>
       <div className="portfolio-grid">

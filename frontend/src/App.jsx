@@ -1,5 +1,13 @@
-import { useEffect, useState } from "react";
-import { createTrade, deleteTradeById, fetchPortfolio, fetchTrades, fetchHistory } from "./api";
+import { useEffect, useRef, useState } from "react";
+import {
+  createTrade,
+  deleteTradeById,
+  fetchPortfolio,
+  fetchTrades,
+  fetchHistory,
+  exportTrades,
+  importTrades,
+} from "./api";
 import TradeForm from "./components/TradeForm";
 import TradesTable from "./components/TradesTable";
 import PortfolioGrid from "./components/PortfolioGrid";
@@ -14,8 +22,10 @@ export default function App() {
   const [historyAsset, setHistoryAsset] = useState("BTC");
   const [historyQuote, setHistoryQuote] = useState(FIAT);
   const [loading, setLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [toast, setToast] = useState("");
   const [view, setView] = useState("dashboard");
+  const fileInputRef = useRef(null);
 
   const loadData = async () => {
     try {
@@ -70,6 +80,42 @@ export default function App() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const blob = await exportTrades();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "trades.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setToast(err.message);
+    }
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setImporting(true);
+      const res = await importTrades(file);
+      setToast(`Importadas ${res.imported} operaciones`);
+      await loadData();
+    } catch (err) {
+      setToast(err.message);
+    } finally {
+      setImporting(false);
+      e.target.value = "";
+    }
+  };
+
   return (
     <div className="app">
       <header className="hero">
@@ -105,7 +151,33 @@ export default function App() {
       )}
 
       {view === "trades" && (
-        <TradesTable trades={trades} onDelete={handleDelete} fiatCurrency={FIAT} onRefresh={loadData} />
+        <>
+          <div className="card glass">
+            <div className="card-header">
+              <div>
+                <p className="eyebrow">CSV</p>
+                <h3>Importar / Exportar</h3>
+              </div>
+              <div className="actions">
+                <button className="ghost" onClick={handleExport}>Exportar CSV</button>
+                <button className="primary" onClick={handleImportClick} disabled={importing}>
+                  {importing ? "Importando..." : "Importar CSV"}
+                </button>
+              </div>
+            </div>
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              style={{ display: "none" }}
+              ref={fileInputRef}
+              onChange={handleImport}
+            />
+            <p className="muted">
+              Usa columnas: base_symbol, quantity, price_fiat, total_cost_fiat, timestamp (ISO, opcional).
+            </p>
+          </div>
+          <TradesTable trades={trades} onDelete={handleDelete} fiatCurrency={FIAT} onRefresh={loadData} />
+        </>
       )}
 
       {view === "history" && (

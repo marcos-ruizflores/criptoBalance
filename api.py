@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, List
@@ -10,9 +10,13 @@ from trades_service import (
     delete_trade,
     get_trade,
     to_public_trade,
+    export_trades_csv,
+    import_trades_csv,
 )
 from portfolio_service import compute_portfolio
 from binance_client import get_asset_history
+from fastapi.responses import StreamingResponse
+import io
 
 
 app = FastAPI(title="CriptoBalance API", version="1.0.0")
@@ -82,3 +86,23 @@ def get_history(base_asset: str, interval: str = "1d", limit: int = 90):
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return data
+
+
+@app.get("/trades/export")
+def export_trades():
+    csv_text = export_trades_csv()
+    buf = io.BytesIO(csv_text.encode("utf-8"))
+    return StreamingResponse(
+        buf,
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="trades.csv"'},
+    )
+
+
+@app.post("/trades/import")
+def import_trades(file: UploadFile = File(...)):
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Sube un archivo CSV")
+    content = file.file.read().decode("utf-8")
+    created = import_trades_csv(content)
+    return {"imported": created}
