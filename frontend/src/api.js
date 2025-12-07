@@ -93,3 +93,8 @@ export async function evaluateAlerts() {
   const res = await fetch(`${API_URL}/alerts/evaluate`, { method: "POST" });
   return handleResponse(res);
 }
+
+export async function fetchTopMarketCaps(limit = 15) {
+  const res = await fetch(`${API_URL}/market/top?limit=${limit}`);
+  return handleResponse(res);
+}

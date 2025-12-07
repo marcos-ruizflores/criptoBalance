@@ -19,7 +19,7 @@ function buildPath(points, width, height) {
     .join(" ");
 }
 
-export default function HistoryChart({ data = [], baseAsset, quote, onRefresh }) {
+export default function HistoryChart({ data = [], baseAsset, quote, range, presets = {}, onRefresh }) {
   const [assetInput, setAssetInput] = useState(baseAsset || "BTC");
 
   useEffect(() => {
@@ -56,9 +56,20 @@ export default function HistoryChart({ data = [], baseAsset, quote, onRefresh })
             onChange={(e) => setAssetInput(e.target.value.toUpperCase())}
             placeholder="BTC, ADA..."
           />
-          <button className="ghost" onClick={() => onRefresh(assetInput || "BTC")}>
+          <button className="ghost" onClick={() => onRefresh(assetInput || "BTC", range)}>
             Ver gráfico
           </button>
+          <div className="pill">
+            {Object.keys(presets).map((key) => (
+              <button
+                key={key}
+                className={range === key ? "chip active" : "chip"}
+                onClick={() => onRefresh(assetInput || "BTC", key)}
+              >
+                {key}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       <div className="chart">

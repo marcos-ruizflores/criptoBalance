@@ -1,9 +1,24 @@
-export default function TradesTable({ trades = [], filter = "all", onFilterChange, onDelete, onRefresh, fiatCurrency = "EUR" }) {
-  const filtered = trades.filter((t) => {
-    if (filter === "buy") return t.side === "BUY";
-    if (filter === "sell") return t.side === "SELL";
-    return true;
-  });
+export default function TradesTable({
+  trades = [],
+  filter = "all",
+  symbolFilter = "",
+  onFilterChange,
+  onSymbolChange,
+  onDelete,
+  onRefresh,
+  fiatCurrency = "EUR",
+}) {
+  const filtered = trades
+    .filter((t) => {
+      if (filter === "buy") return t.side === "BUY";
+      if (filter === "sell") return t.side === "SELL";
+      return true;
+    })
+    .filter((t) => {
+      if (!symbolFilter) return true;
+      const sym = (t.base_asset || t.symbol || "").toUpperCase();
+      return sym.includes(symbolFilter.toUpperCase());
+    });
   return (
     <div className="card glass">
       <div className="card-header">
@@ -17,6 +32,13 @@ export default function TradesTable({ trades = [], filter = "all", onFilterChang
             <button className={filter === "buy" ? "chip active" : "chip"} onClick={() => onFilterChange?.("buy")}>Compras</button>
             <button className={filter === "sell" ? "chip active" : "chip"} onClick={() => onFilterChange?.("sell")}>Ventas</button>
           </div>
+          <input
+            className="input-ghost"
+            style={{ width: 120 }}
+            placeholder="Filtrar cripto"
+            value={symbolFilter}
+            onChange={(e) => onSymbolChange?.(e.target.value)}
+          />
           <button className="ghost" onClick={onRefresh}>
             Actualizar precios
           </button>

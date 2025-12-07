@@ -14,7 +14,7 @@ FIAT_RATE = 1.0  # 1 USDT = 1 EUR (aproximación)
 
 SMTP_HOST="smtp.gmail.com"
 SMTP_PORT="587"
-SMTP_USER="marcos"
-SMTP_PASSWORD="root"
+SMTP_USER="marcos" # mirar de cambiar configuracion 
+SMTP_PASSWORD="root" #mirar de cambiar la configuracion 
 EMAIL_FROM="ruizflores200212@gmail.com"
 ALERT_EMAIL_TO="marcos20028e@gmail.com"

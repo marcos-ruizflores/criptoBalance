@@ -1,86 +1,79 @@
 import requests
 from config import DEFAULT_QUOTE_ASSET, FIAT_CURRENCY
 
-BASE_URL = "https://api.binance.com"
+BINANCE_BASE_URL = "https://api.binance.com"
 
 
-def _fetch_symbol_price(symbol: str) -> float:
-    resp = requests.get(
-        f"{BASE_URL}/api/v3/ticker/price",
-        params={"symbol": symbol.upper()},
-        timeout=10,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    try:
-        return float(data["price"])
-    except (KeyError, TypeError, ValueError) as exc:
-        raise ValueError(f"Respuesta de precio inesperada para {symbol}: {data}") from exc
-
-
-def get_symbol_price(symbol: str) -> float:
+def get_spot_price(symbol: str) -> float:
     """
-    Devuelve el precio actual del símbolo en Binance (ej. BTCUSDT).
+    Devuelve el precio actual de un símbolo spot de Binance.
+    Ejemplo: 'BTCUSDT'
     """
-    return _fetch_symbol_price(symbol)
+    url = f"{BINANCE_BASE_URL}/api/v3/ticker/price"
+    response = requests.get(url, params={"symbol": symbol})
+    response.raise_for_status()
+    data = response.json()
+    return float(data["price"])
 
 
-def get_price_for_asset(base_asset: str) -> tuple[float, str]:
+def _symbol_candidates(base_asset: str):
     """
-    Intenta obtener el precio del activo probando primero FIAT_CURRENCY y
-    después DEFAULT_QUOTE_ASSET. Devuelve (precio, quote_asset_usada).
+    Genera pares candidatos para un activo dado, priorizando DEFAULT_QUOTE_ASSET.
     """
-    base_asset = base_asset.upper()
-    quotes = []
-    if FIAT_CURRENCY:
-        quotes.append(FIAT_CURRENCY.upper())
-    if DEFAULT_QUOTE_ASSET:
-        quotes.append(DEFAULT_QUOTE_ASSET.upper())
-
-    tried = []
-    for quote in quotes:
-        pair = f"{base_asset}{quote}"
-        tried.append(pair)
-        try:
-            price = _fetch_symbol_price(pair)
-            return price, quote
-        except requests.HTTPError as exc:
-            if exc.response is not None and exc.response.status_code == 404:
-                continue
-            raise
-        except Exception:
+    base = base_asset.upper()
+    # Prioriza el par en moneda fiat (EUR) para usar siempre BTCEUR, ETHEUR, etc.
+    quotes = [
+        FIAT_CURRENCY.upper(),
+        DEFAULT_QUOTE_ASSET.upper(),
+        "EUR",
+        "USDT",
+        "BUSD",
+        "USDC",
+    ]
+    seen = set()
+    for q in quotes:
+        if not q or base == q:
             continue
+        symbol = f"{base}{q}"
+        if symbol in seen:
+            continue
+        seen.add(symbol)
+        yield symbol, q
 
-    raise ValueError(f"No se pudo obtener precio para {base_asset}; intentos: {', '.join(tried)}")
 
-
-__all__ = ["get_symbol_price", "get_price_for_asset"]
+def get_price_for_asset(base_asset: str):
+    """
+    Devuelve (precio, quote) para un activo (ej. BTC -> (precio BTC/USDT, 'USDT')).
+    Intenta varios pares comunes hasta encontrar uno válido.
+    """
+    last_error = None
+    for symbol, quote in _symbol_candidates(base_asset):
+        try:
+            price = get_spot_price(symbol)
+            return price, quote
+        except Exception as exc:  # pragma: no cover - fallback silencioso
+            last_error = exc
+            continue
+    raise ValueError(f"No se encontró precio para {base_asset}: {last_error}")
 
 
 def get_asset_history(base_asset: str, interval: str = "1d", limit: int = 90):
     """
-    Obtiene histórico OHLC de Binance para la cripto dada (prioriza par con FIAT_CURRENCY).
-    Devuelve lista de velas con timestamp ms y cierre.
+    Recupera velas históricas para un activo.
+    Devuelve una lista de dicts con open, high, low, close y quote_asset usado.
     """
-    base_asset = base_asset.upper()
-    quotes = []
-    if FIAT_CURRENCY:
-        quotes.append(FIAT_CURRENCY.upper())
-    if DEFAULT_QUOTE_ASSET and DEFAULT_QUOTE_ASSET.upper() not in quotes:
-        quotes.append(DEFAULT_QUOTE_ASSET.upper())
-
     last_error = None
-    for quote in quotes:
-        symbol = f"{base_asset}{quote}"
+    for symbol, quote in _symbol_candidates(base_asset):
         try:
+            url = f"{BINANCE_BASE_URL}/api/v3/klines"
             res = requests.get(
-                f"{BASE_URL}/api/v3/klines",
+                url,
                 params={"symbol": symbol, "interval": interval, "limit": limit},
                 timeout=10,
             )
             res.raise_for_status()
-            raw = res.json()
-            candles = [
+            data = res.json()
+            return [
                 {
                     "open_time": c[0],
                     "open": float(c[1]),
@@ -88,12 +81,44 @@ def get_asset_history(base_asset: str, interval: str = "1d", limit: int = 90):
                     "low": float(c[3]),
                     "close": float(c[4]),
                     "volume": float(c[5]),
+                    "close_time": c[6],
                     "quote_asset": quote,
                 }
-                for c in raw
+                for c in data
             ]
-            return candles
-        except Exception as exc:
+        except Exception as exc:  # pragma: no cover - fallback silencioso
             last_error = exc
             continue
-    raise ValueError(f"No se pudo obtener histórico para {base_asset}") from last_error
+    raise ValueError(f"No se pudo obtener histórico para {base_asset}: {last_error}")
+
+
+def get_top_market_caps(limit: int = 15):
+    """
+    Devuelve top N criptoactivos por capitalización de mercado (en EUR).
+    Fuente: CoinGecko (sin API key).
+    """
+    url = "https://api.coingecko.com/api/v3/coins/markets"
+    res = requests.get(
+        url,
+        params={
+            "vs_currency": FIAT_CURRENCY.lower(),
+            "order": "market_cap_desc",
+            "per_page": limit,
+            "page": 1,
+            "sparkline": "false",
+            "price_change_percentage": "24h",
+        },
+        timeout=10,
+    )
+    res.raise_for_status()
+    data = res.json()
+    return [
+        {
+            "name": item.get("name"),
+            "symbol": (item.get("symbol") or "").upper(),
+            "price": float(item.get("current_price") or 0),
+            "change_24h": float(item.get("price_change_percentage_24h") or 0),
+            "market_cap": float(item.get("market_cap") or 0),
+        }
+        for item in data
+    ]

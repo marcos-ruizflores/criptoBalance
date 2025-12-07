@@ -14,6 +14,7 @@ import {
   createAlert,
   deleteAlertById,
   evaluateAlerts,
+  fetchTopMarketCaps,
 } from "./api";
 import TradeForm from "./components/TradeForm";
 import TradesTable from "./components/TradesTable";
@@ -22,6 +23,13 @@ import HistoryChart from "./components/HistoryChart";
 import MyCryptosChart from "./components/MyCryptosChart";
 
 const FIAT = "EUR";
+const HISTORY_PRESETS = {
+  "24h": { interval: "1h", limit: 24 },
+  "1w": { interval: "1h", limit: 168 },
+  "1m": { interval: "4h", limit: 180 },
+  "3m": { interval: "1d", limit: 90 },
+  "1y": { interval: "1w", limit: 52 },
+};
 
 export default function App() {
   const [trades, setTrades] = useState([]);
@@ -32,6 +40,8 @@ export default function App() {
   const [history, setHistory] = useState([]);
   const [historyAsset, setHistoryAsset] = useState("BTC");
   const [historyQuote, setHistoryQuote] = useState(FIAT);
+  const [historyRange, setHistoryRange] = useState("3m");
+  const [topMarket, setTopMarket] = useState([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [snapshots, setSnapshots] = useState([]);
@@ -46,6 +56,7 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [view, setView] = useState("dashboard");
   const [tradeFilter, setTradeFilter] = useState("all");
+  const [tradeSymbol, setTradeSymbol] = useState("");
   const fileInputRef = useRef(null);
 
   const loadData = async () => {
@@ -82,19 +93,31 @@ export default function App() {
 
   useEffect(() => {
     loadData();
-    loadHistory("BTC");
+    loadHistory("BTC", historyRange);
     loadSnapshots();
     loadAlerts();
+    loadTopMarket();
   }, []);
 
-  const loadHistory = async (asset) => {
+  const loadHistory = async (asset, range = historyRange) => {
     try {
       setHistoryAsset(asset);
-      const data = await fetchHistory(asset);
+      const preset = HISTORY_PRESETS[range] || HISTORY_PRESETS["3m"];
+      const data = await fetchHistory(asset, preset.interval, preset.limit);
       setHistory(data);
       if (data && data.length) {
         setHistoryQuote(data[0].quote_asset || FIAT);
       }
+      setHistoryRange(range);
+    } catch (err) {
+      setToast(err.message);
+    }
+  };
+
+  const loadTopMarket = async () => {
+    try {
+      const data = await fetchTopMarketCaps(15);
+      setTopMarket(data);
     } catch (err) {
       setToast(err.message);
     }
@@ -334,7 +357,9 @@ export default function App() {
           <TradesTable
             trades={trades}
             filter={tradeFilter}
+            symbolFilter={tradeSymbol}
             onFilterChange={setTradeFilter}
+            onSymbolChange={setTradeSymbol}
             onDelete={handleDelete}
             fiatCurrency={FIAT}
             onRefresh={loadData}
@@ -343,7 +368,46 @@ export default function App() {
       )}
 
       {view === "history" && (
-        <HistoryChart data={history} baseAsset={historyAsset} quote={historyQuote} onRefresh={loadHistory} />
+        <div className="layout">
+          <HistoryChart
+            data={history}
+            baseAsset={historyAsset}
+            quote={historyQuote}
+            range={historyRange}
+            presets={HISTORY_PRESETS}
+            onRefresh={loadHistory}
+          />
+          <div className="card glass">
+            <div className="card-header">
+              <div>
+                <p className="eyebrow">Top mercado</p>
+                <h3>15 mayores capitalizaciones</h3>
+              </div>
+              <button className="ghost" onClick={loadTopMarket}>Actualizar</button>
+            </div>
+            <div className="market-list">
+              <div className="market-head">
+                <span>#</span>
+                <span>Cripto</span>
+                <span>Precio</span>
+                <span>24h</span>
+                <span>Market Cap</span>
+              </div>
+              {topMarket.map((c, idx) => (
+                <div key={c.symbol + idx} className="market-row">
+                  <span>{idx + 1}</span>
+                  <span><strong>{c.name}</strong> ({c.symbol})</span>
+                  <span>{c.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {FIAT}</span>
+                  <span className={c.change_24h >= 0 ? "pos" : "neg"}>
+                    {c.change_24h.toFixed(2)}%
+                  </span>
+                  <span>{c.market_cap.toLocaleString(undefined, { maximumFractionDigits: 0 })} {FIAT}</span>
+                </div>
+              ))}
+              {!topMarket.length && <div className="table-empty">Sin datos.</div>}
+            </div>
+          </div>
+        </div>
       )}
 
       {view === "mycryptos" && (

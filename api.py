@@ -14,7 +14,7 @@ from trades_service import (
     import_trades_csv,
 )
 from portfolio_service import compute_portfolio, portfolio_summary
-from binance_client import get_asset_history
+from binance_client import get_asset_history, get_top_market_caps
 from snapshot_service import take_snapshot, list_snapshots, delete_snapshot
 from alerts_service import create_alert, list_alerts, delete_alert, evaluate_alerts
 from fastapi.responses import StreamingResponse
@@ -158,3 +158,12 @@ def remove_alert(alert_id: str):
 def eval_alerts():
     triggered = evaluate_alerts()
     return {"triggered": triggered}
+
+
+@app.get("/market/top")
+def market_top(limit: int = 15):
+    try:
+        data = get_top_market_caps(limit)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return data
