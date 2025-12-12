@@ -2,9 +2,12 @@
 App to record crypto buys (precio y coste en EUR) y consultar PnL con precios en vivo de Binance (par USDT -> se convierte a EUR con `FIAT_RATE`).
 
 ## Backend (Python)
-1. Define variables si no usas los valores por defecto: `MONGO_URI`, `MONGO_DB_NAME`, `DEFAULT_QUOTE_ASSET` (por defecto USDT), `FIAT_RATE` (ej. USDT/EUR) y `FIAT_CURRENCY` (por defecto EUR).
+1. Crea tu `.env` copiando `.env.example` y ajusta variables:
+   - `MONGO_URI` (para Atlas usa la cadena SRV que te da: `mongodb+srv://.../criptoBalance?retryWrites=true&w=majority`)
+   - `MONGO_DB_NAME` (ej. `criptoBalance`)
+   - `DEFAULT_QUOTE_ASSET` (USDT), `FIAT_RATE` (ej. USDT/EUR), `FIAT_CURRENCY` (EUR)
 2. Instala dependencias: `pip install -r requirements.txt`.
-3. Arranca MongoDB.
+3. Arranca MongoDB (local si no usas Atlas).
 4. CLI: `python main.py` para registrar, ver PnL y borrar operaciones.
 5. API (FastAPI): `uvicorn api:app --reload --port 8000`
    - `GET /trades?with_pnl=true`
@@ -26,11 +29,11 @@ App to record crypto buys (precio y coste en EUR) y consultar PnL con precios en
 ## Pasos rápidos tras clonar el repo
 Backend:
 - Crea y activa tu venv (opcional): `python -m venv .venv && source .venv/bin/activate`
+- Copia `.env.example` a `.env` y rellena `MONGO_URI` con tu cadena de Atlas (incluye usuario/contraseña y DB al final, p. ej. `.../criptoBalance`).
 - Instala dependencias: `pip install -r requirements.txt`
-- Arranca MongoDB (local o remoto) y ajusta variables de entorno si hace falta: `MONGO_URI`, `MONGO_DB_NAME`, `DEFAULT_QUOTE_ASSET`, `FIAT_RATE`, `FIAT_CURRENCY`.
-- O usa Docker para Mongo: `docker-compose up -d` (MONGO_URI para la app: `mongodb://localhost:27017/criptoBalance`).
+- Si no usas Atlas, arranca MongoDB local o vía Docker: `docker-compose up -d` (MONGO_URI: `mongodb://localhost:27017/criptoBalance`).
 - Para alertas por email, define `SMTP_HOST`, `SMTP_PORT` (587), `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM`, `ALERT_EMAIL_TO`.
-- Ejecuta la API: `uvicorn api:app --reload --port 8000`
+- Ejecuta la API desde la raíz: `uvicorn backend.api:app --reload --port 8000` (carga .env automáticamente)
 - CLI opcional: `python main.py`
 
 Frontend:

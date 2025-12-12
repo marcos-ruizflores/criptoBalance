@@ -1,5 +1,5 @@
 import requests
-from config import DEFAULT_QUOTE_ASSET, FIAT_CURRENCY
+from backend.config import DEFAULT_QUOTE_ASSET, FIAT_CURRENCY
 
 BINANCE_BASE_URL = "https://api.binance.com"
 

@@ -1,7 +1,7 @@
 from datetime import datetime
-from db import snapshots_col
+from backend.db import snapshots_col
 from bson import ObjectId
-from portfolio_service import portfolio_summary
+from backend.portfolio_service import portfolio_summary
 
 
 def take_snapshot():

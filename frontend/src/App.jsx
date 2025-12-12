@@ -21,6 +21,9 @@ import TradesTable from "./components/TradesTable";
 import PortfolioGrid from "./components/PortfolioGrid";
 import HistoryChart from "./components/HistoryChart";
 import MyCryptosChart from "./components/MyCryptosChart";
+import ChatbotPanel from "./components/ChatbotPanel";
+import TaxCalculator from "./components/TaxCalculator";
+import CryptoSwap from "./components/CryptoSwap";
 
 const FIAT = "EUR";
 const HISTORY_PRESETS = {
@@ -32,6 +35,7 @@ const HISTORY_PRESETS = {
 };
 
 export default function App() {
+  const [mode, setMode] = useState("landing"); // landing | cripto | tax | market | bot
   const [trades, setTrades] = useState([]);
   const [portfolioItems, setPortfolioItems] = useState([]);
   const [portfolioTotals, setPortfolioTotals] = useState({});
@@ -92,12 +96,13 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (mode !== "cripto") return;
     loadData();
     loadHistory("BTC", historyRange);
     loadSnapshots();
     loadAlerts();
     loadTopMarket();
-  }, []);
+  }, [mode]);
 
   const loadHistory = async (asset, range = historyRange) => {
     try {
@@ -229,30 +234,123 @@ export default function App() {
     }
   };
 
+  const handleEnterCripto = () => {
+    setMode("cripto");
+    setView("dashboard");
+  };
+
+  const handleEnterTax = () => {
+    setMode("tax");
+  };
+
+  const handleEnterMarket = () => {
+    setMode("market");
+  };
+
+  const handleEnterBot = () => {
+    setMode("bot");
+  };
+
+  const currentTitle =
+    mode === "cripto"
+      ? "CriptoBalance"
+      : mode === "tax"
+      ? "IRPF Rápido"
+      : mode === "market"
+      ? "Mercado bursátil"
+      : mode === "bot"
+      ? "Bot de Trading"
+      : "FinanzasBalance";
+
+  const currentSubtitle =
+    mode === "cripto"
+      ? "Registra compras en fiat y visualiza tu PnL en vivo."
+      : mode === "tax"
+      ? "Calcula un IRPF estimado con tus datos básicos."
+      : mode === "market"
+      ? "Próximamente: seguimiento de acciones y mercados tradicionales."
+      : mode === "bot"
+      ? "Próximamente: configura y lanza tu bot de trading automatizado."
+      : "Elige qué quieres gestionar hoy.";
+
+  if (mode === "landing") {
+    return (
+      <div className="app landing">
+        <header className="hero">
+          <div>
+            <p className="eyebrow">Bienvenido</p>
+            <h1 className="title">FinanzasBalance</h1>
+            <p className="subtitle">Elige qué quieres gestionar hoy.</p>
+          </div>
+        </header>
+        <div className="landing-grid">
+          <div className="option-card glass" onClick={handleEnterCripto}>
+            <p className="eyebrow">Portfolio</p>
+            <h2>CriptoBalance</h2>
+            <p className="muted">
+              Registra compras/ventas, ve tu PnL, histórico de precios y alertas de mercado.
+            </p>
+            <button className="primary">Entrar</button>
+          </div>
+          <div className="option-card glass" onClick={handleEnterTax}>
+            <p className="eyebrow">Fiscalidad</p>
+            <h2>Calcula tus impuestos</h2>
+            <p className="muted">
+              Próximamente: simulador completo de IRPF. De momento, prueba un cálculo rápido.
+            </p>
+            <button className="ghost">Calcular IRPF</button>
+          </div>
+          <div className="option-card glass" onClick={handleEnterMarket}>
+            <p className="eyebrow">Mercado</p>
+            <h2>Bolsa (próximamente)</h2>
+            <p className="muted">
+              Seguimiento de acciones y mercados tradicionales en desarrollo. Vuelve pronto.
+            </p>
+            <button className="ghost">Ver avances</button>
+          </div>
+          <div className="option-card glass" onClick={handleEnterBot}>
+            <p className="eyebrow">Automatización</p>
+            <h2>Bot de Trading</h2>
+            <p className="muted">
+              Configura estrategias y lanza un bot. Estará disponible en próximas versiones.
+            </p>
+            <button className="ghost">Próximamente</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="app">
+    <>
+    <div className={`app ${mode === "cripto" ? "has-chat" : ""}`}>
       <header className="hero">
         <div>
-          <h1 className="title">CriptoBalance</h1>
-          <p className="subtitle">Registra compras en fiat y visualiza tu PnL en vivo.</p>
+          <h1 className="title">{currentTitle}</h1>
+          <p className="subtitle">{currentSubtitle}</p>
         </div>
-        <nav className="nav">
-          <button className={view === "dashboard" ? "nav-btn active" : "nav-btn"} onClick={() => setView("dashboard")}>
-            Panel
-          </button>
-          <button className={view === "trades" ? "nav-btn active" : "nav-btn"} onClick={() => setView("trades")}>
-            Operaciones
-          </button>
-          <button className={view === "history" ? "nav-btn active" : "nav-btn"} onClick={() => setView("history")}>
-            Gráfico
-          </button>
-          <button className={view === "alerts" ? "nav-btn active" : "nav-btn"} onClick={() => setView("alerts")}>
-            Alertas
-          </button>
-          <button className={view === "mycryptos" ? "nav-btn active" : "nav-btn"} onClick={() => setView("mycryptos")}>
-            MyCriptos
-          </button>
-        </nav>
+        <div className="actions">
+          {mode === "cripto" && (
+            <nav className="nav">
+              <button className={view === "dashboard" ? "nav-btn active" : "nav-btn"} onClick={() => setView("dashboard")}>
+                Panel
+              </button>
+              <button className={view === "trades" ? "nav-btn active" : "nav-btn"} onClick={() => setView("trades")}>
+                Operaciones
+              </button>
+              <button className={view === "history" ? "nav-btn active" : "nav-btn"} onClick={() => setView("history")}>
+                Gráfico
+              </button>
+              <button className={view === "alerts" ? "nav-btn active" : "nav-btn"} onClick={() => setView("alerts")}>
+                Alertas
+              </button>
+              <button className={view === "mycryptos" ? "nav-btn active" : "nav-btn"} onClick={() => setView("mycryptos")}>
+                MyCriptos
+              </button>
+            </nav>
+          )}
+          <button className="ghost" onClick={() => setMode("landing")}>Volver a FinanzasBalance</button>
+        </div>
         {toast && (
           <div className="pill" role="status">
             {toast}
@@ -260,7 +358,7 @@ export default function App() {
         )}
       </header>
 
-      {view === "dashboard" && (
+      {mode === "cripto" && view === "dashboard" && (
         <div className="layout">
           <div>
             <TradeForm onSubmit={handleCreate} fiatCurrency={FIAT} loading={loading} />
@@ -328,7 +426,7 @@ export default function App() {
         </div>
       )}
 
-      {view === "trades" && (
+      {mode === "cripto" && view === "trades" && (
         <>
           <div className="card glass">
             <div className="card-header">
@@ -364,6 +462,7 @@ export default function App() {
             fiatCurrency={FIAT}
             onRefresh={loadData}
           />
+          <CryptoSwap />
         </>
       )}
 
@@ -410,7 +509,7 @@ export default function App() {
         </div>
       )}
 
-      {view === "mycryptos" && (
+      {mode === "cripto" && view === "mycryptos" && (
         <div className="layout">
           <div className="card glass">
             <div className="card-header">
@@ -424,7 +523,59 @@ export default function App() {
         </div>
       )}
 
-      {view === "alerts" && (
+      {mode === "tax" && (
+        <div className="layout">
+          <div className="card glass">
+            <div className="card-header">
+              <div>
+                <p className="eyebrow">FinanzasBalance</p>
+                <h3>Simulador IRPF (en progreso)</h3>
+              </div>
+              <span className="pill">Beta</span>
+            </div>
+            <p className="muted">
+              Aquí podrás calcular tus impuestos con mayor detalle. Por ahora, usa la calculadora rápida para estimar tu IRPF.
+            </p>
+          </div>
+          <TaxCalculator />
+        </div>
+      )}
+
+      {mode === "market" && (
+        <div className="layout">
+          <div className="card glass">
+            <div className="card-header">
+              <div>
+                <p className="eyebrow">Mercado bursátil</p>
+                <h3>Próximamente</h3>
+              </div>
+              <span className="pill">En desarrollo</span>
+            </div>
+            <p className="muted">
+              Añadiremos seguimiento de acciones, índices y watchlists personalizadas. Estate atento a las próximas versiones.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {mode === "bot" && (
+        <div className="layout">
+          <div className="card glass">
+            <div className="card-header">
+              <div>
+                <p className="eyebrow">Bot de Trading</p>
+                <h3>Próximamente</h3>
+              </div>
+              <span className="pill">En desarrollo</span>
+            </div>
+            <p className="muted">
+              Aquí podrás definir estrategias, backtests y ejecutar bots automáticos. Lo incorporaremos en futuras iteraciones.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {mode === "cripto" && view === "alerts" && (
         <div className="layout">
           <div className="card glass">
             <div className="card-header">
@@ -495,5 +646,7 @@ export default function App() {
         </div>
       )}
     </div>
+    {mode === "cripto" && <ChatbotPanel />}
+    </>
   );
 }

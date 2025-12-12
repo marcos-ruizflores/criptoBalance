@@ -1,7 +1,7 @@
 from datetime import datetime
-from trades_service import register_trade, list_trades_with_market, delete_trade
-from portfolio_service import compute_portfolio
-from config import FIAT_CURRENCY
+from backend.trades_service import register_trade, list_trades_with_market, delete_trade
+from backend.portfolio_service import compute_portfolio
+from backend.config import FIAT_CURRENCY
 
 
 def menu():

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, List
 
-from trades_service import (
+from backend.trades_service import (
     register_trade,
     list_trades,
     list_trades_with_market,
@@ -13,10 +13,10 @@ from trades_service import (
     export_trades_csv,
     import_trades_csv,
 )
-from portfolio_service import compute_portfolio, portfolio_summary
-from binance_client import get_asset_history, get_top_market_caps
-from snapshot_service import take_snapshot, list_snapshots, delete_snapshot
-from alerts_service import create_alert, list_alerts, delete_alert, evaluate_alerts
+from backend.portfolio_service import compute_portfolio, portfolio_summary
+from backend.binance_client import get_asset_history, get_top_market_caps
+from backend.snapshot_service import take_snapshot, list_snapshots, delete_snapshot
+from backend.alerts_service import create_alert, list_alerts, delete_alert, evaluate_alerts
 from fastapi.responses import StreamingResponse
 import io
 
