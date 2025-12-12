@@ -1,11 +1,14 @@
 from dotenv import load_dotenv
 import os
+from pathlib import Path
 
-load_dotenv()
+# Carga .env desde la raíz del proyecto aunque ejecutes desde backend/
+ROOT_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(ROOT_DIR / ".env")
 
-# Conexión a MongoDB local
+# Conexión a MongoDB (usa MONGO_URI para Atlas, por defecto local)
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
-MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "crypto_portfolio")
+MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "criptoBalance")
 
 # Configuración general del proyecto
 DEFAULT_QUOTE_ASSET = "USDT"

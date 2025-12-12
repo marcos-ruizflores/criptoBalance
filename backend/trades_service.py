@@ -3,9 +3,9 @@ import io
 import csv
 from typing import Optional
 from bson import ObjectId
-from db import trades_col
-from binance_client import get_price_for_asset
-from config import DEFAULT_QUOTE_ASSET, FIAT_RATE, FIAT_CURRENCY
+from backend.db import trades_col
+from backend.binance_client import get_price_for_asset
+from backend.config import DEFAULT_QUOTE_ASSET, FIAT_RATE, FIAT_CURRENCY
 
 
 def register_trade(

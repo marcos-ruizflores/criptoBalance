@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import List
 from bson import ObjectId
-from db import alerts_col
-from binance_client import get_price_for_asset
-from config import (
+from backend.db import alerts_col
+from backend.binance_client import get_price_for_asset
+from backend.config import (
     FIAT_CURRENCY,
     FIAT_RATE,
     SMTP_HOST,
@@ -13,7 +13,7 @@ from config import (
     EMAIL_FROM,
     ALERT_EMAIL_TO,
 )
-from portfolio_service import portfolio_summary
+from backend.portfolio_service import portfolio_summary
 import smtplib
 from email.message import EmailMessage
 
