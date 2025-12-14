@@ -94,6 +94,24 @@ export async function evaluateAlerts() {
   return handleResponse(res);
 }
 
+export async function signup(payload) {
+  const res = await fetch(`${API_URL}/auth/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
+export async function login(payload) {
+  const res = await fetch(`${API_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
 export async function fetchTopMarketCaps(limit = 15) {
   const res = await fetch(`${API_URL}/market/top?limit=${limit}`);
   return handleResponse(res);

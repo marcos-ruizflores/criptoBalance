@@ -17,6 +17,7 @@ from backend.portfolio_service import compute_portfolio, portfolio_summary
 from backend.binance_client import get_asset_history, get_top_market_caps
 from backend.snapshot_service import take_snapshot, list_snapshots, delete_snapshot
 from backend.alerts_service import create_alert, list_alerts, delete_alert, evaluate_alerts
+from backend.auth_service import create_user, authenticate_user, issue_token
 from fastapi.responses import StreamingResponse
 import io
 
@@ -47,6 +48,18 @@ class AlertIn(BaseModel):
     kind: str = Field(..., description="price o pnl_pct")
     direction: str = Field(..., description="above o below")
     threshold: float
+
+
+class SignupIn(BaseModel):
+    email: str
+    password: str
+    name: Optional[str] = None
+    phone: Optional[str] = None
+
+
+class LoginIn(BaseModel):
+    email: str
+    password: str
 
 
 @app.get("/health")
@@ -158,6 +171,25 @@ def remove_alert(alert_id: str):
 def eval_alerts():
     triggered = evaluate_alerts()
     return {"triggered": triggered}
+
+
+@app.post("/auth/signup", status_code=201)
+def signup(payload: SignupIn):
+    try:
+        user = create_user(payload.email, payload.password, payload.name, payload.phone)
+        token = issue_token(user)
+        return {"user": user, "token": token}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/auth/login")
+def login(payload: LoginIn):
+    user = authenticate_user(payload.email, payload.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Credenciales inválidas")
+    token = issue_token(user)
+    return {"user": user, "token": token}
 
 
 @app.get("/market/top")

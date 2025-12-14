@@ -24,6 +24,7 @@ import MyCryptosChart from "./components/MyCryptosChart";
 import ChatbotPanel from "./components/ChatbotPanel";
 import TaxCalculator from "./components/TaxCalculator";
 import CryptoSwap from "./components/CryptoSwap";
+import AuthForm from "./components/AuthForm";
 
 const FIAT = "EUR";
 const HISTORY_PRESETS = {
@@ -35,7 +36,7 @@ const HISTORY_PRESETS = {
 };
 
 export default function App() {
-  const [mode, setMode] = useState("landing"); // landing | cripto | tax | market | bot
+  const [mode, setMode] = useState("auth"); // auth primero, luego landing | cripto | tax | market | bot
   const [trades, setTrades] = useState([]);
   const [portfolioItems, setPortfolioItems] = useState([]);
   const [portfolioTotals, setPortfolioTotals] = useState({});
@@ -61,6 +62,7 @@ export default function App() {
   const [view, setView] = useState("dashboard");
   const [tradeFilter, setTradeFilter] = useState("all");
   const [tradeSymbol, setTradeSymbol] = useState("");
+  const [user, setUser] = useState(null);
   const fileInputRef = useRef(null);
 
   const loadData = async () => {
@@ -96,13 +98,20 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (!user) return;
     if (mode !== "cripto") return;
     loadData();
     loadHistory("BTC", historyRange);
     loadSnapshots();
     loadAlerts();
     loadTopMarket();
-  }, [mode]);
+  }, [mode, user]);
+
+  useEffect(() => {
+    if (!user && mode !== "auth") {
+      setMode("auth");
+    }
+  }, [mode, user]);
 
   const loadHistory = async (asset, range = historyRange) => {
     try {
@@ -251,6 +260,10 @@ export default function App() {
     setMode("bot");
   };
 
+  const handleEnterAuth = () => {
+    setMode("auth");
+  };
+
   const currentTitle =
     mode === "cripto"
       ? "CriptoBalance"
@@ -260,6 +273,8 @@ export default function App() {
       ? "Mercado bursátil"
       : mode === "bot"
       ? "Bot de Trading"
+      : mode === "auth"
+      ? "Acceso"
       : "FinanzasBalance";
 
   const currentSubtitle =
@@ -271,7 +286,22 @@ export default function App() {
       ? "Próximamente: seguimiento de acciones y mercados tradicionales."
       : mode === "bot"
       ? "Próximamente: configura y lanza tu bot de trading automatizado."
+      : mode === "auth"
+      ? "Inicia sesión o crea tu cuenta para guardar tus datos."
       : "Elige qué quieres gestionar hoy.";
+
+  if (mode === "auth") {
+    return (
+      <div className="auth-page">
+        <AuthForm
+          onSuccess={(res) => {
+            setUser(res?.user || null);
+            setMode("landing");
+          }}
+        />
+      </div>
+    );
+  }
 
   if (mode === "landing") {
     return (
@@ -316,6 +346,14 @@ export default function App() {
             </p>
             <button className="ghost">Próximamente</button>
           </div>
+          {!user && (
+            <div className="option-card glass" onClick={handleEnterAuth}>
+              <p className="eyebrow">Acceso</p>
+              <h2>Login / Signup</h2>
+              <p className="muted">Guarda tus datos en tu cuenta y accede desde cualquier dispositivo.</p>
+              <button className="primary">Acceder</button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -349,7 +387,13 @@ export default function App() {
               </button>
             </nav>
           )}
+          {user && <span className="pill">{user.email}</span>}
           <button className="ghost" onClick={() => setMode("landing")}>Volver a FinanzasBalance</button>
+          {user && (
+            <button className="ghost" onClick={() => { setUser(null); setMode("auth"); }}>
+              Cerrar sesión
+            </button>
+          )}
         </div>
         {toast && (
           <div className="pill" role="status">
@@ -538,6 +582,20 @@ export default function App() {
             </p>
           </div>
           <TaxCalculator />
+        </div>
+      )}
+
+      {mode === "auth" && (
+        <div className="layout">
+          <AuthForm onSuccess={(res) => setUser(res?.user || null)} />
+          {user && (
+            <div className="card glass">
+              <p className="eyebrow">Sesión</p>
+              <strong>{user.email}</strong>
+              <p className="muted small">Tus datos se guardan en Atlas (colección users).</p>
+              <button className="ghost" onClick={() => setUser(null)}>Cerrar sesión (local)</button>
+            </div>
+          )}
         </div>
       )}
 
