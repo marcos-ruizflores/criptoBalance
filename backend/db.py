@@ -14,3 +14,7 @@ def snapshots_col():
 
 def alerts_col():
     return db["alerts"]
+
+
+def users_col():
+    return db["users"]
