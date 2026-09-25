@@ -1,48 +1,74 @@
 # criptoBalance
-App to record crypto buys (precio y coste en EUR) y consultar PnL con precios en vivo de Binance (par USDT -> se convierte a EUR con `FIAT_RATE`).
 
-## Backend (Python)
-1. Crea tu `.env` copiando `.env.example` y ajusta variables:
-   - `MONGO_URI` (para Atlas usa la cadena SRV que te da: `mongodb+srv://.../criptoBalance?retryWrites=true&w=majority`)
-   - `MONGO_DB_NAME` (ej. `criptoBalance`)
-   - `DEFAULT_QUOTE_ASSET` (USDT), `FIAT_RATE` (ej. USDT/EUR), `FIAT_CURRENCY` (EUR)
-2. Instala dependencias: `pip install -r requirements.txt`.
-3. Arranca MongoDB (local si no usas Atlas).
-4. CLI: `python main.py` para registrar, ver PnL y borrar operaciones.
-5. API (FastAPI): `uvicorn api:app --reload --port 8000`
-   - `GET /trades?with_pnl=true`
-   - `POST /trades` `{ base_symbol, quantity, price_fiat, total_cost_fiat?, side }`
-   - `DELETE /trades/{id}`
-   - `GET /trades/export` (CSV)
-   - `POST /trades/import` (multipart/form-data con CSV)
-   - `GET /portfolio` (resumen con PnL realizado/no realizado y top ganadores/perdedores)
-   - `POST /snapshots` / `GET /snapshots`
-   - `POST /alerts` / `GET /alerts` / `DELETE /alerts/{id}` / `POST /alerts/evaluate`
-   - `GET /history?base_asset=BTC&interval=1d&limit=90`
-   - `GET /health`
+Crypto portfolio tracker. You log your buys and sells in EUR and it shows the current
+value and profit/loss of each position using live Binance prices.
 
-## Frontend (React + Vite)
-1. Ve a `frontend/` y ejecuta `npm install`.
-2. Ejecuta `npm run dev` (usa `VITE_API_URL` si tu backend no está en `http://localhost:8000`).
-3. Interfaz con registro de compras/ventas en EUR, PnL en vivo, import/export CSV, snapshots y alertas básicas.
+![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
 
-## Pasos rápidos tras clonar el repo
-Backend:
-- Crea y activa tu venv (opcional): `python -m venv .venv && source .venv/bin/activate`
-- Copia `.env.example` a `.env` y rellena `MONGO_URI` con tu cadena de Atlas (incluye usuario/contraseña y DB al final, p. ej. `.../criptoBalance`).
-- Instala dependencias: `pip install -r requirements.txt`
-- Si no usas Atlas, arranca MongoDB local o vía Docker: `docker-compose up -d` (MONGO_URI: `mongodb://localhost:27017/criptoBalance`).
-- Para alertas por email, define `SMTP_HOST`, `SMTP_PORT` (587), `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM`, `ALERT_EMAIL_TO`.
-- Ejecuta la API desde la raíz: `uvicorn backend.api:app --reload --port 8000` (carga .env automáticamente)
-- CLI opcional: `python main.py`
+## Features
 
-Frontend:
-- `cd frontend && npm install`
-- `npm run dev` (si el backend no está en `http://localhost:8000`, exporta `VITE_API_URL` con la URL correcta)
+- Record BUY/SELL trades in EUR and see realized and unrealized PnL per asset
+  (weighted average cost basis after partial sells)
+- Live prices from the Binance public API, preferring EUR pairs and falling back to USDT
+- Portfolio overview with top winners/losers and allocation chart
+- Price history chart per ticker (24h, 1w, 1m, 3m, 1y)
+- Price and PnL% alerts, with optional email notifications over SMTP
+- Portfolio snapshots, CSV import/export
+- Top coins by market cap (CoinGecko), a simple tax estimator and a swap mock-up
+- Also usable from the terminal through a small CLI
 
-Uso:
-- Panel: registrar BUY/SELL, ver portfolio con PnL realizado/no realizado, top ganadores/perdedores.
-- Operaciones: listar, borrar, importar/exportar CSV.
-- Gráfico: histórico de precio por ticker.
-- MyCriptos: distribución por valor actual.
-- Alertas: crea/evalúa alertas de precio o PnL%; si hay SMTP configurado, envía correo a `ALERT_EMAIL_TO` cuando se disparan.
+## Project structure
+
+```
+backend/     FastAPI app, MongoDB access and Binance/CoinGecko clients
+frontend/    React + Vite single page app
+```
+
+## Getting started
+
+Requirements: Python 3.10+, Node 18+ and a MongoDB instance (local, Docker or Atlas).
+
+```bash
+# 1. Config
+cp .env.example .env            # set MONGO_URI and, optionally, the SMTP settings
+
+# 2. Database (skip if you use Atlas)
+docker compose -f backend/docker-compose.yml up -d
+
+# 3. Backend on http://localhost:8000 (docs at /docs)
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn backend.api:app --reload --port 8000
+
+# 4. Frontend on http://localhost:5173
+cd frontend
+npm install
+npm run dev                     # set VITE_API_URL if the API isn't on localhost:8000
+```
+
+CLI version: `python -m backend.main`
+
+## API
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/health` | Health check |
+| GET / POST | `/trades` | List trades (`?with_pnl=true`) / create a trade |
+| DELETE | `/trades/{id}` | Delete a trade |
+| GET / POST | `/trades/export`, `/trades/import` | CSV export / import (multipart) |
+| GET | `/portfolio` | Positions with realized/unrealized PnL |
+| GET | `/history?base_asset=BTC&interval=1d&limit=90` | Price candles |
+| GET / POST / DELETE | `/snapshots` | Portfolio snapshots |
+| GET / POST / DELETE | `/alerts`, `POST /alerts/evaluate` | Price and PnL alerts |
+| POST | `/auth/signup`, `/auth/login` | Accounts (bcrypt password hashing) |
+| GET | `/market/top` | Top coins by market cap |
+
+Example trade:
+
+```json
+{ "base_symbol": "BTC", "quantity": 0.01, "price_fiat": 58000, "side": "BUY" }
+```

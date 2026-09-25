@@ -17,7 +17,7 @@ def register_trade(
     side: str = "BUY",
 ):
     """
-    Registra una operación de criptomoneda (BUY/SELL) en EUR.
+    Records a crypto trade (BUY/SELL) in EUR.
     """
     timestamp = timestamp or datetime.utcnow()
     side = side.upper()
@@ -59,7 +59,7 @@ def get_trade(trade_id: str) -> Optional[dict]:
 
 def delete_trade(trade_id: str) -> bool:
     """
-    Elimina una operación por su _id. Devuelve True si se borró una.
+    Deletes a trade by _id. Returns True if one was deleted.
     """
     try:
         oid = ObjectId(trade_id)
@@ -71,7 +71,7 @@ def delete_trade(trade_id: str) -> bool:
 
 def enrich_trade_with_market(trade: dict) -> dict:
     """
-    Devuelve el trade con datos de precio actual y PnL en moneda fiat.
+    Returns the trade enriched with the current price and PnL in fiat.
     """
     symbol = trade.get("symbol", "")
     base_asset = trade.get("base_asset") or symbol.removesuffix(DEFAULT_QUOTE_ASSET)
@@ -113,7 +113,7 @@ def list_trades_with_market():
 
 def to_public_trade(trade: dict) -> dict:
     """
-    Convierte _id a str para respuestas JSON.
+    Turns _id into a str for JSON responses.
     """
     if not trade:
         return trade
@@ -125,7 +125,7 @@ def to_public_trade(trade: dict) -> dict:
 
 def export_trades_csv(trades: Optional[list] = None) -> str:
     """
-    Exporta operaciones a CSV.
+    Exports trades to CSV.
     """
     trades = trades if trades is not None else list_trades()
     output = io.StringIO()
@@ -155,8 +155,8 @@ def export_trades_csv(trades: Optional[list] = None) -> str:
 
 def import_trades_csv(csv_text: str) -> int:
     """
-    Importa operaciones desde CSV con cabecera base_symbol, quantity, price_fiat, total_cost_fiat, side (BUY/SELL), timestamp (opcional).
-    Devuelve número de operaciones creadas.
+    Imports trades from a CSV with header base_symbol, quantity, price_fiat, total_cost_fiat, side (BUY/SELL), timestamp (optional).
+    Returns the number of trades created.
     """
     reader = csv.DictReader(io.StringIO(csv_text))
     created = 0

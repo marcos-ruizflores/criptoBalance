@@ -36,7 +36,7 @@ const HISTORY_PRESETS = {
 };
 
 export default function App() {
-  const [mode, setMode] = useState("auth"); // auth primero, luego landing | cripto | tax | market | bot
+  const [mode, setMode] = useState("auth"); // auth first, then landing | cripto | tax | market | bot
   const [trades, setTrades] = useState([]);
   const [portfolioItems, setPortfolioItems] = useState([]);
   const [portfolioTotals, setPortfolioTotals] = useState({});

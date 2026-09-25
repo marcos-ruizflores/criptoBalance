@@ -1,9 +1,9 @@
 import React from "react";
 
 const colorFor = (label) => {
-  // Genera un color único por activo a partir del nombre usando HSL.
+  // Derive a stable color per asset from its name using HSL.
   const base = Array.from(label || "").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-  const hue = (base * 137) % 360; // golden angle para separar tonos
+  const hue = (base * 137) % 360; // golden angle keeps the hues spread apart
   return `hsl(${hue}, 75%, 55%)`;
 };
 

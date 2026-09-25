@@ -46,5 +46,5 @@ def authenticate_user(email: str, password: str) -> Optional[dict]:
 
 
 def issue_token(user: dict) -> str:
-    # Token efímero de demostración (no JWT). Sustituye por algo persistente si lo necesitas.
+    # Throwaway demo token (not a JWT). Swap for something persistent if needed.
     return str(uuid4())

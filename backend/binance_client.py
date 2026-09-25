@@ -6,8 +6,8 @@ BINANCE_BASE_URL = "https://api.binance.com"
 
 def get_spot_price(symbol: str) -> float:
     """
-    Devuelve el precio actual de un símbolo spot de Binance.
-    Ejemplo: 'BTCUSDT'
+    Current price of a Binance spot symbol.
+    Example: 'BTCUSDT'
     """
     url = f"{BINANCE_BASE_URL}/api/v3/ticker/price"
     response = requests.get(url, params={"symbol": symbol})
@@ -18,10 +18,10 @@ def get_spot_price(symbol: str) -> float:
 
 def _symbol_candidates(base_asset: str):
     """
-    Genera pares candidatos para un activo dado, priorizando DEFAULT_QUOTE_ASSET.
+    Candidate trading pairs for an asset, DEFAULT_QUOTE_ASSET first.
     """
     base = base_asset.upper()
-    # Prioriza el par en moneda fiat (EUR) para usar siempre BTCEUR, ETHEUR, etc.
+    # Prefer the fiat (EUR) pair so we always use BTCEUR, ETHEUR, etc.
     quotes = [
         FIAT_CURRENCY.upper(),
         DEFAULT_QUOTE_ASSET.upper(),
@@ -43,8 +43,8 @@ def _symbol_candidates(base_asset: str):
 
 def get_price_for_asset(base_asset: str):
     """
-    Devuelve (precio, quote) para un activo (ej. BTC -> (precio BTC/USDT, 'USDT')).
-    Intenta varios pares comunes hasta encontrar uno válido.
+    Returns (price, quote) for an asset (e.g. BTC -> (BTC/USDT price, 'USDT')).
+    Tries a few common pairs until one works.
     """
     last_error = None
     for symbol, quote in _symbol_candidates(base_asset):
@@ -59,8 +59,8 @@ def get_price_for_asset(base_asset: str):
 
 def get_asset_history(base_asset: str, interval: str = "1d", limit: int = 90):
     """
-    Recupera velas históricas para un activo.
-    Devuelve una lista de dicts con open, high, low, close y quote_asset usado.
+    Fetches historical candles for an asset.
+    Returns a list of dicts with open, high, low, close and the quote_asset used.
     """
     last_error = None
     for symbol, quote in _symbol_candidates(base_asset):
@@ -94,8 +94,8 @@ def get_asset_history(base_asset: str, interval: str = "1d", limit: int = 90):
 
 def get_top_market_caps(limit: int = 15):
     """
-    Devuelve top N criptoactivos por capitalización de mercado (en EUR).
-    Fuente: CoinGecko (sin API key).
+    Top N crypto assets by market cap (in EUR).
+    Source: CoinGecko (no API key needed).
     """
     url = "https://api.coingecko.com/api/v3/coins/markets"
     res = requests.get(

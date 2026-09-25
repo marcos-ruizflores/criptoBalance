@@ -108,7 +108,7 @@ def send_email_alert(alert: dict):
                 smtp.login(SMTP_USER, SMTP_PASSWORD)
             smtp.send_message(msg)
     except Exception:
-        # Silencia para no romper la evaluación de alertas.
+        # Swallow it so a mail failure doesn't break alert evaluation.
         return
 
 

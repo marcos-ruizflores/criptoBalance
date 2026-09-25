@@ -11,8 +11,8 @@ def _base_asset_from_trade(trade: dict) -> str:
 
 def portfolio_summary():
     """
-    Resume posiciones abiertas y PnL (realizado/no realizado).
-    Usa promedio ponderado para calcular el coste pendiente tras ventas.
+    Summary of open positions and PnL (realized/unrealized).
+    Uses a weighted average to work out the remaining cost basis after sells.
     """
     trades = list(trades_col().find().sort("timestamp", 1))
 
@@ -48,7 +48,7 @@ def portfolio_summary():
         try:
             current_price_quote, quote_used = get_price_for_asset(base)
         except Exception:
-            # Si Binance falla, saltamos el activo para no romper todo el resumen.
+            # If Binance fails for one asset, skip it instead of breaking the whole summary.
             continue
         conversion_rate = 1.0 if quote_used.upper() == FIAT_CURRENCY.upper() else float(FIAT_RATE)
         current_price_fiat = current_price_quote * conversion_rate
@@ -95,6 +95,6 @@ def portfolio_summary():
 
 def compute_portfolio():
     """
-    Devuelve solo la lista de posiciones (modo CLI).
+    Just the list of positions (CLI mode).
     """
     return portfolio_summary().get("items", [])
