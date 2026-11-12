@@ -3,6 +3,5 @@ uvicorn
 pymongo
 requests
 python-multipart
-passlib[bcrypt]
 bcrypt>=4.0.1
 python-dotenv

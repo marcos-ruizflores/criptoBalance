@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from uuid import uuid4
-from passlib.hash import bcrypt
+import bcrypt
 from backend.db import users_col
 
 
@@ -21,7 +21,7 @@ def create_user(email: str, password: str, name: Optional[str] = None, phone: Op
         raise ValueError("La contraseña no puede superar 72 caracteres")
     if users_col().find_one({"email": email}):
         raise ValueError("El usuario ya existe")
-    pwd_hash = bcrypt.hash(password)
+    pwd_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
     doc = {
         "email": email,
         "name": (name or "").strip() or None,
@@ -39,10 +39,21 @@ def authenticate_user(email: str, password: str) -> Optional[dict]:
     user = users_col().find_one({"email": email})
     if not user:
         return None
-    if not bcrypt.verify(password, user.get("password_hash", "")):
+    if not _password_matches(password, user.get("password_hash", "")):
         return None
     users_col().update_one({"_id": user["_id"]}, {"$set": {"last_login_at": datetime.utcnow()}})
     return to_public(user)
+
+
+def _password_matches(password: str, stored_hash: str) -> bool:
+    # bcrypt only looks at 72 bytes and the library refuses anything longer
+    raw = (password or "").encode("utf-8")
+    if not stored_hash or len(raw) > 72:
+        return False
+    try:
+        return bcrypt.checkpw(raw, stored_hash.encode("utf-8"))
+    except ValueError:
+        return False
 
 
 def issue_token(user: dict) -> str:
