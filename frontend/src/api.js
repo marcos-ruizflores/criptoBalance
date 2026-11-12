@@ -1,118 +1,59 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
-async function handleResponse(res) {
+let token = null;
+let onUnauthorized = () => {};
+
+export function setSession(newToken, handleUnauthorized) {
+  token = newToken;
+  if (handleUnauthorized) onUnauthorized = handleUnauthorized;
+}
+
+async function request(path, { method = "GET", json, body, raw = false } = {}) {
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (json !== undefined) headers["Content-Type"] = "application/json";
+
+  const res = await fetch(`${API_URL}${path}`, {
+    method,
+    headers,
+    body: json !== undefined ? JSON.stringify(json) : body,
+  });
+
+  // Expired or invalid session: drop it and send the user back to the login screen
+  if (res.status === 401 && token) {
+    onUnauthorized();
+  }
   if (!res.ok) {
     const detail = await res.text();
     throw new Error(detail || `Error HTTP ${res.status}`);
   }
-  return res.json();
+  return raw ? res.blob() : res.json();
 }
 
-export async function fetchTrades() {
-  const res = await fetch(`${API_URL}/trades?with_pnl=true`);
-  return handleResponse(res);
-}
+export const fetchTrades = () => request("/trades?with_pnl=true");
+export const fetchPortfolio = () => request("/portfolio");
+export const createTrade = (payload) => request("/trades", { method: "POST", json: payload });
+export const deleteTradeById = (id) => request(`/trades/${encodeURIComponent(id)}`, { method: "DELETE" });
+export const exportTrades = () => request("/trades/export", { raw: true });
 
-export async function fetchPortfolio() {
-  const res = await fetch(`${API_URL}/portfolio`);
-  return handleResponse(res);
-}
-
-export async function createTrade(payload) {
-  const res = await fetch(`${API_URL}/trades`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  return handleResponse(res);
-}
-
-export async function deleteTradeById(id) {
-  const res = await fetch(`${API_URL}/trades/${id}`, { method: "DELETE" });
-  return handleResponse(res);
-}
-
-export async function fetchHistory(baseAsset, interval = "1d", limit = 90) {
-  const res = await fetch(
-    `${API_URL}/history?base_asset=${encodeURIComponent(baseAsset)}&interval=${interval}&limit=${limit}`
-  );
-  return handleResponse(res);
-}
-
-export async function exportTrades() {
-  const res = await fetch(`${API_URL}/trades/export`);
-  if (!res.ok) throw new Error(`Error HTTP ${res.status}`);
-  return res.blob();
-}
-
-export async function importTrades(file) {
+export function importTrades(file) {
   const formData = new FormData();
   formData.append("file", file);
-  const res = await fetch(`${API_URL}/trades/import`, {
-    method: "POST",
-    body: formData,
-  });
-  return handleResponse(res);
+  return request("/trades/import", { method: "POST", body: formData });
 }
 
-export async function fetchSnapshots() {
-  const res = await fetch(`${API_URL}/snapshots`);
-  return handleResponse(res);
-}
+export const fetchHistory = (baseAsset, interval = "1d", limit = 90) =>
+  request(`/history?base_asset=${encodeURIComponent(baseAsset)}&interval=${interval}&limit=${limit}`);
+export const fetchTopMarketCaps = (limit = 15) => request(`/market/top?limit=${limit}`);
 
-export async function createSnapshot() {
-  const res = await fetch(`${API_URL}/snapshots`, { method: "POST" });
-  return handleResponse(res);
-}
+export const fetchSnapshots = () => request("/snapshots");
+export const createSnapshot = () => request("/snapshots", { method: "POST" });
+export const deleteSnapshot = (id) => request(`/snapshots/${encodeURIComponent(id)}`, { method: "DELETE" });
 
-export async function deleteSnapshot(id) {
-  const res = await fetch(`${API_URL}/snapshots/${id}`, { method: "DELETE" });
-  return handleResponse(res);
-}
+export const fetchAlerts = () => request("/alerts");
+export const createAlert = (payload) => request("/alerts", { method: "POST", json: payload });
+export const deleteAlertById = (id) => request(`/alerts/${encodeURIComponent(id)}`, { method: "DELETE" });
+export const evaluateAlerts = () => request("/alerts/evaluate", { method: "POST" });
 
-export async function fetchAlerts() {
-  const res = await fetch(`${API_URL}/alerts`);
-  return handleResponse(res);
-}
-
-export async function createAlert(payload) {
-  const res = await fetch(`${API_URL}/alerts`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  return handleResponse(res);
-}
-
-export async function deleteAlertById(id) {
-  const res = await fetch(`${API_URL}/alerts/${id}`, { method: "DELETE" });
-  return handleResponse(res);
-}
-
-export async function evaluateAlerts() {
-  const res = await fetch(`${API_URL}/alerts/evaluate`, { method: "POST" });
-  return handleResponse(res);
-}
-
-export async function signup(payload) {
-  const res = await fetch(`${API_URL}/auth/signup`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  return handleResponse(res);
-}
-
-export async function login(payload) {
-  const res = await fetch(`${API_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  return handleResponse(res);
-}
-
-export async function fetchTopMarketCaps(limit = 15) {
-  const res = await fetch(`${API_URL}/market/top?limit=${limit}`);
-  return handleResponse(res);
-}
+export const signup = (payload) => request("/auth/signup", { method: "POST", json: payload });
+export const login = (payload) => request("/auth/login", { method: "POST", json: payload });

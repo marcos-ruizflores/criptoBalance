@@ -17,7 +17,8 @@ value and profit/loss of each position using live Binance prices.
 - Overview with current value, invested amount, realized/unrealized gains, positions and allocation
 - Price history chart per ticker (24h, 1w, 1m, 3m, 1y) with hover readout
 - Top coins by market cap (CoinGecko)
-- Price and PnL% alerts, with optional email notifications over SMTP
+- Accounts with JWT sessions; every trade, snapshot and alert belongs to its user
+- Price and PnL% alerts, with optional email notifications to the account's email over SMTP
 - Portfolio snapshots, CSV import/export
 - Light and dark theme, following the system setting
 - Also usable from the terminal through a small CLI
@@ -35,7 +36,7 @@ Requirements: Python 3.10+, Node 18+ and a MongoDB instance (local, Docker or At
 
 ```bash
 # 1. Config
-cp .env.example .env            # set MONGO_URI and, optionally, the SMTP settings
+cp .env.example .env            # set MONGO_URI and JWT_SECRET, optionally the SMTP settings
 
 # 2. Database (skip if you use Atlas)
 docker compose -f backend/docker-compose.yml up -d
@@ -51,13 +52,15 @@ npm install
 npm run dev                     # set VITE_API_URL if the API isn't on localhost:8000
 ```
 
-CLI version: `python -m backend.main`
+CLI version: `python -m backend.main` (asks for the same email and password as the web app)
 
 ## API
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/health` | Health check |
+| POST | `/auth/signup`, `/auth/login` | Create an account / sign in, both return a JWT |
+| GET | `/auth/me` | Current user |
 | GET / POST | `/trades` | List trades (`?with_pnl=true`) / create a trade |
 | DELETE | `/trades/{id}` | Delete a trade |
 | GET / POST | `/trades/export`, `/trades/import` | CSV export / import (multipart) |
@@ -65,8 +68,16 @@ CLI version: `python -m backend.main`
 | GET | `/history?base_asset=BTC&interval=1d&limit=90` | Price candles |
 | GET / POST / DELETE | `/snapshots` | Portfolio snapshots |
 | GET / POST / DELETE | `/alerts`, `POST /alerts/evaluate` | Price and PnL alerts |
-| POST | `/auth/signup`, `/auth/login` | Accounts (bcrypt password hashing) |
 | GET | `/market/top` | Top coins by market cap |
+
+Everything except `/health` and `/auth/*` needs an `Authorization: Bearer <token>` header.
+
+## Security notes
+
+- Passwords hashed with bcrypt, sessions are HS256 JWTs signed with `JWT_SECRET` (7 days by default, `JWT_TTL_HOURS`)
+- All data queries filter by the user in the token, so one account can't read or delete another's data
+- CORS only allows the origins in `ALLOWED_ORIGINS`
+- Failed logins are capped per IP, CSV uploads are limited to 1 MB
 
 Example trade:
 

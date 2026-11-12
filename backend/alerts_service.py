@@ -11,7 +11,6 @@ from backend.config import (
     SMTP_USER,
     SMTP_PASSWORD,
     EMAIL_FROM,
-    ALERT_EMAIL_TO,
 )
 from backend.portfolio_service import portfolio_summary
 import smtplib
@@ -25,8 +24,9 @@ def to_public(alert: dict) -> dict:
     return a
 
 
-def create_alert(base_asset: str, kind: str, direction: str, threshold: float):
+def create_alert(user_id: str, base_asset: str, kind: str, direction: str, threshold: float):
     alert = {
+        "user_id": user_id,
         "base_asset": base_asset.upper(),
         "kind": kind,
         "direction": direction,
@@ -38,22 +38,22 @@ def create_alert(base_asset: str, kind: str, direction: str, threshold: float):
     return to_public(alert)
 
 
-def list_alerts():
-    return [to_public(a) for a in alerts_col().find().sort("created_at", -1)]
+def list_alerts(user_id: str):
+    return [to_public(a) for a in alerts_col().find({"user_id": user_id}).sort("created_at", -1)]
 
 
-def delete_alert(alert_id: str) -> bool:
+def delete_alert(user_id: str, alert_id: str) -> bool:
     try:
         oid = ObjectId(alert_id)
     except Exception:
         return False
-    res = alerts_col().delete_one({"_id": oid})
+    res = alerts_col().delete_one({"_id": oid, "user_id": user_id})
     return res.deleted_count > 0
 
 
-def evaluate_alerts() -> List[dict]:
-    alerts = list_alerts()
-    summary = portfolio_summary()
+def evaluate_alerts(user: dict) -> List[dict]:
+    alerts = list_alerts(user["_id"])
+    summary = portfolio_summary(user["_id"])
     items_by_asset = {i["base_asset"]: i for i in summary["items"]}
     triggered = []
     for alert in alerts:
@@ -64,7 +64,10 @@ def evaluate_alerts() -> List[dict]:
 
         value = None
         if kind == "price":
-            price_quote, quote = get_price_for_asset(base)
+            try:
+                price_quote, quote = get_price_for_asset(base)
+            except Exception:
+                continue
             conversion = 1.0 if quote.upper() == FIAT_CURRENCY.upper() else float(FIAT_RATE)
             value = price_quote * conversion
         elif kind == "pnl_pct":
@@ -78,22 +81,22 @@ def evaluate_alerts() -> List[dict]:
         hit = (direction == "above" and value >= threshold) or (direction == "below" and value <= threshold)
         if hit:
             alerts_col().update_one(
-                {"_id": ObjectId(alert["_id"]) if isinstance(alert["_id"], str) else alert["_id"]},
+                {"_id": ObjectId(alert["_id"]), "user_id": user["_id"]},
                 {"$set": {"last_triggered_at": datetime.utcnow(), "last_value": value}},
             )
             enriched = {**to_public(alert), "current_value": value}
             triggered.append(enriched)
-            send_email_alert(enriched)
+            send_email_alert(enriched, user.get("email"))
     return triggered
 
 
-def send_email_alert(alert: dict):
-    if not (SMTP_HOST and EMAIL_FROM and ALERT_EMAIL_TO):
+def send_email_alert(alert: dict, to: str):
+    if not (SMTP_HOST and EMAIL_FROM and to):
         return
     msg = EmailMessage()
     msg["Subject"] = f"[CriptoBalance] Alerta {alert.get('base_asset')} {alert.get('kind')}"
     msg["From"] = EMAIL_FROM
-    msg["To"] = ALERT_EMAIL_TO
+    msg["To"] = to
     body = (
         f"Activo: {alert.get('base_asset')}\n"
         f"Tipo: {alert.get('kind')} {alert.get('direction')} {alert.get('threshold')}\n"

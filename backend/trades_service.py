@@ -9,6 +9,7 @@ from backend.config import DEFAULT_QUOTE_ASSET, FIAT_RATE, FIAT_CURRENCY
 
 
 def register_trade(
+    user_id: str,
     base_symbol: str,
     quantity: float,
     price_fiat: float,
@@ -27,6 +28,7 @@ def register_trade(
     total_cost_quote = total_cost_fiat / FIAT_RATE
 
     trade = {
+        "user_id": user_id,
         "symbol": f"{base_symbol}{DEFAULT_QUOTE_ASSET}",
         "base_asset": base_symbol,
         "quote_asset": DEFAULT_QUOTE_ASSET,
@@ -45,27 +47,27 @@ def register_trade(
     return result.inserted_id
 
 
-def list_trades():
-    return list(trades_col().find().sort("timestamp", 1))
+def list_trades(user_id: str):
+    return list(trades_col().find({"user_id": user_id}).sort("timestamp", 1))
 
 
-def get_trade(trade_id: str) -> Optional[dict]:
+def get_trade(user_id: str, trade_id: str) -> Optional[dict]:
     try:
         oid = ObjectId(trade_id)
-    except Exception as exc:
-        raise ValueError("ID de operación no válido") from exc
-    return trades_col().find_one({"_id": oid})
+    except Exception:
+        return None
+    return trades_col().find_one({"_id": oid, "user_id": user_id})
 
 
-def delete_trade(trade_id: str) -> bool:
+def delete_trade(user_id: str, trade_id: str) -> bool:
     """
-    Deletes a trade by _id. Returns True if one was deleted.
+    Deletes one of the user's trades by _id. Returns True if one was deleted.
     """
     try:
         oid = ObjectId(trade_id)
-    except Exception as exc:
-        raise ValueError("ID de operación no válido") from exc
-    res = trades_col().delete_one({"_id": oid})
+    except Exception:
+        return False
+    res = trades_col().delete_one({"_id": oid, "user_id": user_id})
     return res.deleted_count > 0
 
 
@@ -107,8 +109,8 @@ def enrich_trade_with_market(trade: dict) -> dict:
     }
 
 
-def list_trades_with_market():
-    return [enrich_trade_with_market(t) for t in list_trades()]
+def list_trades_with_market(user_id: str):
+    return [enrich_trade_with_market(t) for t in list_trades(user_id)]
 
 
 def to_public_trade(trade: dict) -> dict:
@@ -123,11 +125,11 @@ def to_public_trade(trade: dict) -> dict:
     return trade
 
 
-def export_trades_csv(trades: Optional[list] = None) -> str:
+def export_trades_csv(user_id: str) -> str:
     """
-    Exports trades to CSV.
+    Exports the user's trades to CSV, in the same format the import reads.
     """
-    trades = trades if trades is not None else list_trades()
+    trades = list_trades(user_id)
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(
@@ -136,6 +138,7 @@ def export_trades_csv(trades: Optional[list] = None) -> str:
             "quantity",
             "price_fiat",
             "total_cost_fiat",
+            "side",
             "timestamp",
         ]
     )
@@ -147,26 +150,33 @@ def export_trades_csv(trades: Optional[list] = None) -> str:
                 t.get("price_fiat") or "",
                 t.get("total_cost_fiat") or "",
                 t.get("side", "BUY"),
-                t.get("timestamp"),
+                t.get("timestamp").isoformat() if isinstance(t.get("timestamp"), datetime) else t.get("timestamp"),
             ]
         )
     return output.getvalue()
 
 
-def import_trades_csv(csv_text: str) -> int:
+def import_trades_csv(user_id: str, csv_text: str, max_rows: int = 5000) -> int:
     """
     Imports trades from a CSV with header base_symbol, quantity, price_fiat, total_cost_fiat, side (BUY/SELL), timestamp (optional).
     Returns the number of trades created.
     """
     reader = csv.DictReader(io.StringIO(csv_text))
     created = 0
-    for row in reader:
+    for i, row in enumerate(reader):
+        if i >= max_rows:
+            break
         base_symbol = row.get("base_symbol") or row.get("symbol")
-        quantity = float(row.get("quantity", 0) or 0)
-        price_fiat = float(row.get("price_fiat", 0) or 0)
-        total_cost_fiat_val = row.get("total_cost_fiat")
-        total_cost_fiat = float(total_cost_fiat_val) if total_cost_fiat_val not in (None, "",) else None
-        side_val = row.get("side", "BUY").upper()
+        try:
+            quantity = float(row.get("quantity", 0) or 0)
+            price_fiat = float(row.get("price_fiat", 0) or 0)
+            total_cost_fiat_val = row.get("total_cost_fiat")
+            total_cost_fiat = float(total_cost_fiat_val) if total_cost_fiat_val not in (None, "",) else None
+        except ValueError:
+            continue
+        side_val = (row.get("side") or "BUY").upper()
+        if side_val not in ("BUY", "SELL"):
+            continue
         ts_val = row.get("timestamp")
         timestamp = None
         if ts_val:
@@ -176,6 +186,6 @@ def import_trades_csv(csv_text: str) -> int:
                 timestamp = None
         if not base_symbol or quantity <= 0 or price_fiat <= 0:
             continue
-        register_trade(base_symbol, quantity, price_fiat, total_cost_fiat, timestamp, side=side_val)
+        register_trade(user_id, base_symbol.strip()[:20], quantity, price_fiat, total_cost_fiat, timestamp, side=side_val)
         created += 1
     return created

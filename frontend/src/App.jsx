@@ -9,6 +9,7 @@ import {
   fetchSnapshots,
   fetchTrades,
   importTrades,
+  setSession,
 } from "./api";
 import AuthForm from "./components/AuthForm";
 import Overview from "./components/Overview";
@@ -32,36 +33,49 @@ const HEADINGS = {
   alerts: ["Alertas", "Avisos cuando un precio o una ganancia cruza un valor."],
 };
 
-const USER_KEY = "criptobalance:user";
+const SESSION_KEY = "criptobalance:session";
 
-function readUser() {
+// Only a session with a token counts; older saves held just the user
+function readSession() {
   try {
-    return JSON.parse(localStorage.getItem(USER_KEY));
+    const s = JSON.parse(localStorage.getItem(SESSION_KEY));
+    return s?.token && s?.user ? s : null;
   } catch {
     return null;
   }
 }
 
+function saveSession(session) {
+  try {
+    if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    else localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem("criptobalance:user");
+  } catch {}
+}
+
 export default function App() {
-  const [user, setUser] = useState(readUser);
+  const [session, setSessionState] = useState(readSession);
+  const [notice, setNotice] = useState("");
+
+  const handleLogout = useCallback((message = "") => {
+    saveSession(null);
+    setSession(null);
+    setNotice(message);
+    setSessionState(null);
+  }, []);
+
+  // The API client needs the token before the dashboard makes its first request
+  setSession(session?.token || null, () => handleLogout("Tu sesión ha caducado. Vuelve a entrar."));
 
   const handleLogin = (res) => {
-    const u = res?.user || null;
-    try {
-      localStorage.setItem(USER_KEY, JSON.stringify(u));
-    } catch {}
-    setUser(u);
+    const next = res?.token ? { user: res.user, token: res.token } : null;
+    saveSession(next);
+    setNotice("");
+    setSessionState(next);
   };
 
-  const handleLogout = () => {
-    try {
-      localStorage.removeItem(USER_KEY);
-    } catch {}
-    setUser(null);
-  };
-
-  if (!user) return <AuthForm onSuccess={handleLogin} />;
-  return <Dashboard user={user} onLogout={handleLogout} />;
+  if (!session) return <AuthForm onSuccess={handleLogin} notice={notice} />;
+  return <Dashboard user={session.user} onLogout={() => handleLogout()} />;
 }
 
 function Dashboard({ user, onLogout }) {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { login, signup } from "../api";
 
 const EMPTY = { name: "", phone: "", email: "", password: "", confirmPassword: "" };
@@ -13,11 +13,19 @@ function readError(err) {
   }
 }
 
-export default function AuthForm({ onSuccess }) {
+export default function AuthForm({ onSuccess, notice = "" }) {
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState(EMPTY);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [slow, setSlow] = useState(false);
+
+  // The free server sleeps when idle, so the first request can take a while
+  useEffect(() => {
+    if (!loading) return setSlow(false);
+    const t = setTimeout(() => setSlow(true), 4000);
+    return () => clearTimeout(t);
+  }, [loading]);
 
   const isSignup = mode === "signup";
   const set = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -65,8 +73,10 @@ export default function AuthForm({ onSuccess }) {
                 <input className="input" name="name" autoComplete="name" required value={form.name} onChange={set} />
               </label>
               <label className="field">
-                <span>Teléfono</span>
-                <input className="input" name="phone" type="tel" autoComplete="tel" required value={form.phone} onChange={set} />
+                <span>
+                  Teléfono <span className="muted">(opcional)</span>
+                </span>
+                <input className="input" name="phone" type="tel" autoComplete="tel" value={form.phone} onChange={set} />
               </label>
             </>
           )}
@@ -82,6 +92,7 @@ export default function AuthForm({ onSuccess }) {
               type="password"
               autoComplete={isSignup ? "new-password" : "current-password"}
               required
+              minLength={isSignup ? 8 : undefined}
               maxLength={72}
               value={form.password}
               onChange={set}
@@ -96,6 +107,7 @@ export default function AuthForm({ onSuccess }) {
                 type="password"
                 autoComplete="new-password"
                 required
+                minLength={8}
                 maxLength={72}
                 value={form.confirmPassword}
                 onChange={set}
@@ -103,6 +115,7 @@ export default function AuthForm({ onSuccess }) {
             </label>
           )}
 
+          {notice && !error && <p className="muted small">{notice}</p>}
           {error && (
             <p className="error" role="alert">
               {error}
@@ -112,6 +125,7 @@ export default function AuthForm({ onSuccess }) {
           <button className="btn btn-primary btn-block" type="submit" disabled={loading}>
             {loading ? "Un momento…" : isSignup ? "Crear cuenta" : "Entrar"}
           </button>
+          {slow && <p className="muted small">Despertando el servidor, la primera vez puede tardar hasta un minuto.</p>}
         </form>
 
         <p className="auth-switch">

@@ -1,4 +1,6 @@
 from datetime import datetime
+from getpass import getpass
+from backend.auth_service import authenticate_user
 from backend.trades_service import register_trade, list_trades_with_market, delete_trade
 from backend.portfolio_service import compute_portfolio
 from backend.config import FIAT_CURRENCY
@@ -13,18 +15,18 @@ def menu():
     print("0. Salir")
     return input("Selecciona opción: ")
 
-def handle_register_trade():
+def handle_register_trade(user_id):
     base_symbol = input("Criptomoneda (ej: BTC): ").upper()
     quantity = float(input("Cantidad: "))
     price_fiat = float(input(f"Precio unitario en {FIAT_CURRENCY}: "))
     total_cost_fiat_input = input(f"Coste total en {FIAT_CURRENCY} (enter para {quantity * price_fiat:.2f}): ")
     total_cost_fiat = float(total_cost_fiat_input) if total_cost_fiat_input else quantity * price_fiat
 
-    trade_id = register_trade(base_symbol, quantity, price_fiat, total_cost_fiat, datetime.utcnow())
+    trade_id = register_trade(user_id, base_symbol, quantity, price_fiat, total_cost_fiat, datetime.utcnow())
     print(f"Operación registrada con ID: {trade_id}")
 
-def handle_list_trades():
-    trades = list_trades_with_market()
+def handle_list_trades(user_id):
+    trades = list_trades_with_market(user_id)
     print("\n=== OPERACIONES (PNL ACTUAL) ===")
     for t in trades:
         print(
@@ -35,8 +37,8 @@ def handle_list_trades():
             f"PnL={t.get('pnl_fiat'):.2f} {FIAT_CURRENCY} ({t.get('pnl_pct'):.2f}%)"
         )
 
-def handle_portfolio():
-    portfolio = compute_portfolio()
+def handle_portfolio(user_id):
+    portfolio = compute_portfolio(user_id)
     print("\n=== PORTFOLIO ===")
     for p in portfolio:
         print(
@@ -48,26 +50,32 @@ def handle_portfolio():
         )
 
 
-def handle_delete_trade():
+def handle_delete_trade(user_id):
     trade_id = input("ID de la operación a eliminar (_id): ").strip()
-    try:
-        deleted = delete_trade(trade_id)
-    except ValueError as exc:
-        print(f"ID no válido: {exc}")
-        return
-    if deleted:
+    if delete_trade(user_id, trade_id):
         print("Operación eliminada.")
     else:
         print("No se encontró una operación con ese ID.")
 
 
+def login():
+    # Same accounts as the web app, so the CLI only sees your own trades
+    for _ in range(3):
+        user = authenticate_user(input("Email: "), getpass("Contraseña: "))
+        if user:
+            return user["_id"]
+        print("Email o contraseña incorrectos.")
+    raise SystemExit(1)
+
+
 def main():
+    user_id = login()
     while True:
         option = menu()
-        if option == "1": handle_register_trade()
-        elif option == "2": handle_list_trades()
-        elif option == "3": handle_portfolio()
-        elif option == "4": handle_delete_trade()
+        if option == "1": handle_register_trade(user_id)
+        elif option == "2": handle_list_trades(user_id)
+        elif option == "3": handle_portfolio(user_id)
+        elif option == "4": handle_delete_trade(user_id)
         elif option == "0":
             print("Saliendo...")
             break

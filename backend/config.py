@@ -1,5 +1,7 @@
 from dotenv import load_dotenv
+import logging
 import os
+import secrets
 from pathlib import Path
 
 # Load .env from the project root, even when running from backend/
@@ -10,15 +12,24 @@ load_dotenv(ROOT_DIR / ".env")
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "criptoBalance")
 
+# Auth. Set JWT_SECRET in production; without it every restart logs everyone out.
+JWT_SECRET = os.getenv("JWT_SECRET", "")
+if not JWT_SECRET:
+    JWT_SECRET = secrets.token_urlsafe(32)
+    logging.getLogger("criptobalance").warning("JWT_SECRET is not set, using a temporary one")
+JWT_TTL_HOURS = int(os.getenv("JWT_TTL_HOURS", "168"))
+
+# Frontends allowed to call the API, comma separated
+ALLOWED_ORIGINS = [o.strip().rstrip("/") for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",") if o.strip()]
+
 # General settings
 DEFAULT_QUOTE_ASSET = "USDT"
 FIAT_CURRENCY = "EUR"
 FIAT_RATE = 1.0  # 1 USDT = 1 EUR (rough approximation)
 
-# Email alerts. Leave these empty to disable them.
+# Email alerts go to the account's email. Leave these empty to disable them.
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 EMAIL_FROM = os.getenv("EMAIL_FROM", "")
-ALERT_EMAIL_TO = os.getenv("ALERT_EMAIL_TO", "")

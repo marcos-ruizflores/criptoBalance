@@ -9,12 +9,12 @@ def _base_asset_from_trade(trade: dict) -> str:
     return trade.get("base_asset") or symbol.removesuffix(DEFAULT_QUOTE_ASSET)
 
 
-def portfolio_summary():
+def portfolio_summary(user_id: str):
     """
     Summary of open positions and PnL (realized/unrealized).
     Uses a weighted average to work out the remaining cost basis after sells.
     """
-    trades = list(trades_col().find().sort("timestamp", 1))
+    trades = list(trades_col().find({"user_id": user_id}).sort("timestamp", 1))
 
     positions = defaultdict(lambda: {"quantity": 0.0, "cost_fiat": 0.0})
     total_realized = 0.0
@@ -93,8 +93,8 @@ def portfolio_summary():
     }
 
 
-def compute_portfolio():
+def compute_portfolio(user_id: str):
     """
     Just the list of positions (CLI mode).
     """
-    return portfolio_summary().get("items", [])
+    return portfolio_summary(user_id).get("items", [])
