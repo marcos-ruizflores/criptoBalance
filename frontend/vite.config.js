@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
+  // GitHub Pages serves the app under /criptoBalance/
+  base: process.env.VITE_BASE || "/",
   server: {
     port: 5173,
   },

@@ -1,0 +1,24 @@
+# Render blueprint for the API. The frontend is served from GitHub Pages.
+services:
+  - type: web
+    name: criptobalance-api
+    runtime: python
+    plan: free
+    # Binance blocks US IPs, so keep the server in Europe
+    region: frankfurt
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.api:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips "*"
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: MONGO_URI
+        sync: false
+      - key: MONGO_DB_NAME
+        value: criptoBalance
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: https://marcos-ruizflores.github.io

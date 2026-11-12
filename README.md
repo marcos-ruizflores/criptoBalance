@@ -84,3 +84,13 @@ Example trade:
 ```json
 { "base_symbol": "BTC", "quantity": 0.01, "price_fiat": 58000, "side": "BUY" }
 ```
+
+## Deployment
+
+Runs for free on three services:
+
+- **Database:** MongoDB Atlas M0. Allow access from anywhere (`0.0.0.0/0`), Render's free plan has no fixed IP.
+- **API:** Render, from `render.yaml` (New > Blueprint). It asks for `MONGO_URI` and generates `JWT_SECRET`.
+  The free plan sleeps after 15 minutes idle, so the first request after that takes up to a minute.
+- **Frontend:** GitHub Pages, built by `.github/workflows/pages.yml` on every push to `main`.
+  Set the repository variable `API_URL` to the Render URL.
