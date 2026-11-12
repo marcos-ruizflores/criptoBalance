@@ -1,138 +1,126 @@
 import { useState } from "react";
 import { login, signup } from "../api";
 
-export default function AuthForm({ onSuccess }) {
-  const [mode, setMode] = useState("login"); // login | signup
-  const [form, setForm] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-  });
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+const EMPTY = { name: "", phone: "", email: "", password: "", confirmPassword: "" };
 
-  const handleChange = (e) => {
-    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+// FastAPI errors come back as JSON text; show just the message
+function readError(err) {
+  try {
+    const parsed = JSON.parse(err.message);
+    return typeof parsed.detail === "string" ? parsed.detail : "Revisa los datos e inténtalo de nuevo.";
+  } catch {
+    return err.message || "Algo ha fallado. Inténtalo de nuevo.";
+  }
+}
+
+export default function AuthForm({ onSuccess }) {
+  const [mode, setMode] = useState("login");
+  const [form, setForm] = useState(EMPTY);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const isSignup = mode === "signup";
+  const set = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+
+  const switchMode = () => {
+    setMode(isSignup ? "login" : "signup");
+    setError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage("");
-
-    if (mode === "signup" && form.password !== form.confirmPassword) {
-      setMessage("Las contraseñas no coinciden");
+    setError("");
+    if (isSignup && form.password !== form.confirmPassword) {
+      setError("Las contraseñas no coinciden.");
       return;
     }
-
     setLoading(true);
     try {
-      const payload =
-        mode === "login"
-          ? { email: form.email, password: form.password }
-          : {
-              name: form.name,
-              phone: form.phone,
-              email: form.email,
-              password: form.password,
-            };
-
-      const fn = mode === "login" ? login : signup;
-      const res = await fn(payload);
-
-      setMessage(
-        mode === "login"
-          ? `✅ Bienvenido ${res?.user?.email}`
-          : "✅ Cuenta creada correctamente"
-      );
-
+      const res = isSignup
+        ? await signup({ name: form.name, phone: form.phone, email: form.email, password: form.password })
+        : await login({ email: form.email, password: form.password });
       onSuccess?.(res);
     } catch (err) {
-      setMessage(err.message || "Error inesperado");
+      setError(readError(err));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-container">
+    <main className="auth">
       <div className="auth-card">
-        <header className="auth-header">
-          <h2>{mode === "login" ? "Iniciar sesión" : "Crear cuenta"}</h2>
-          <div className="auth-tabs">
-            <button
-              className={mode === "login" ? "active" : ""}
-              onClick={() => setMode("login")}
-            >
-              Login
-            </button>
-            <button
-              className={mode === "signup" ? "active" : ""}
-              onClick={() => setMode("signup")}
-            >
-              Sign up
-            </button>
-          </div>
-        </header>
+        <div className="brand">
+          <span className="brand-mark">C</span>
+          CriptoBalance
+        </div>
+        <h1>{isSignup ? "Crea tu cuenta" : "Inicia sesión"}</h1>
+        <p>{isSignup ? "Empieza a registrar tus operaciones." : "Accede a tu cartera."}</p>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          {mode === "signup" && (
+        <form className="auth-form" onSubmit={handleSubmit}>
+          {isSignup && (
             <>
-              <input
-                name="name"
-                placeholder="Nombre completo"
-                required
-                onChange={handleChange}
-              />
-              <input
-                name="phone"
-                placeholder="Número de teléfono"
-                required
-                onChange={handleChange}
-              />
+              <label className="field">
+                <span>Nombre</span>
+                <input className="input" name="name" autoComplete="name" required value={form.name} onChange={set} />
+              </label>
+              <label className="field">
+                <span>Teléfono</span>
+                <input className="input" name="phone" type="tel" autoComplete="tel" required value={form.phone} onChange={set} />
+              </label>
             </>
           )}
-
-          <input
-            type="email"
-            name="email"
-            placeholder="Correo electrónico"
-            required
-            onChange={handleChange}
-          />
-
-          <input
-            type="password"
-            name="password"
-            placeholder="Contraseña"
-            required
-            maxLength={72}
-            onChange={handleChange}
-          />
-
-          {mode === "signup" && (
+          <label className="field">
+            <span>Email</span>
+            <input className="input" name="email" type="email" autoComplete="email" required value={form.email} onChange={set} />
+          </label>
+          <label className="field">
+            <span>Contraseña</span>
             <input
+              className="input"
+              name="password"
               type="password"
-              name="confirmPassword"
-              placeholder="Confirmar contraseña"
+              autoComplete={isSignup ? "new-password" : "current-password"}
               required
               maxLength={72}
-              onChange={handleChange}
+              value={form.password}
+              onChange={set}
             />
+          </label>
+          {isSignup && (
+            <label className="field">
+              <span>Repite la contraseña</span>
+              <input
+                className="input"
+                name="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                required
+                maxLength={72}
+                value={form.confirmPassword}
+                onChange={set}
+              />
+            </label>
           )}
 
-          <button type="submit" disabled={loading}>
-            {loading
-              ? "Procesando..."
-              : mode === "login"
-              ? "Entrar"
-              : "Crear cuenta"}
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+
+          <button className="btn btn-primary btn-block" type="submit" disabled={loading}>
+            {loading ? "Un momento…" : isSignup ? "Crear cuenta" : "Entrar"}
           </button>
         </form>
 
-        {message && <p className="auth-message">{message}</p>}
+        <p className="auth-switch">
+          {isSignup ? "¿Ya tienes cuenta? " : "¿No tienes cuenta? "}
+          <button type="button" className="link" onClick={switchMode}>
+            {isSignup ? "Inicia sesión" : "Regístrate"}
+          </button>
+        </p>
       </div>
-    </div>
+    </main>
   );
 }

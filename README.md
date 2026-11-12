@@ -14,11 +14,12 @@ value and profit/loss of each position using live Binance prices.
 - Record BUY/SELL trades in EUR and see realized and unrealized PnL per asset
   (weighted average cost basis after partial sells)
 - Live prices from the Binance public API, preferring EUR pairs and falling back to USDT
-- Portfolio overview with top winners/losers and allocation chart
-- Price history chart per ticker (24h, 1w, 1m, 3m, 1y)
+- Overview with current value, invested amount, realized/unrealized gains, positions and allocation
+- Price history chart per ticker (24h, 1w, 1m, 3m, 1y) with hover readout
+- Top coins by market cap (CoinGecko)
 - Price and PnL% alerts, with optional email notifications over SMTP
 - Portfolio snapshots, CSV import/export
-- Top coins by market cap (CoinGecko), a simple tax estimator and a swap mock-up
+- Light and dark theme, following the system setting
 - Also usable from the terminal through a small CLI
 
 ## Project structure
