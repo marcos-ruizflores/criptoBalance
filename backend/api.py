@@ -17,6 +17,7 @@ from backend.chat_service import ChatLimiter, chat_enabled, stream_answer
 from backend.binance_client import get_asset_history, get_top_market_caps
 from backend.config import ALLOWED_ORIGINS, CHAT_DAILY_LIMIT
 from backend.db import ensure_indexes
+from backend.history_service import RANGES, portfolio_history
 from backend.portfolio_service import portfolio_summary
 from backend.screenshot_service import IMAGE_TYPES, MAX_IMAGE_BYTES, ExtractionError, extract_trades
 from backend.snapshot_service import delete_snapshot, list_snapshots, take_snapshot
@@ -226,6 +227,15 @@ def import_trades(file: UploadFile = File(...), user_id: str = Depends(uid)):
 @app.get("/portfolio")
 def get_portfolio(user_id: str = Depends(uid)):
     return portfolio_summary(user_id)
+
+
+@app.get("/portfolio/history")
+def get_portfolio_history(range: Literal["1m", "3m", "1y", "all"] = "all", user_id: str = Depends(uid)):
+    try:
+        return portfolio_history(user_id, range)
+    except Exception as exc:
+        logging.getLogger("criptobalance").warning("portfolio history failed: %s", exc)
+        raise HTTPException(status_code=502, detail="No se pudo calcular la evolución ahora mismo")
 
 
 @app.get("/history")

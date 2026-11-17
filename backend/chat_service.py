@@ -15,6 +15,7 @@ import anthropic
 from backend.alerts_service import list_alerts
 from backend.binance_client import get_asset_history, get_top_market_caps
 from backend.config import ANTHROPIC_API_KEY, CHAT_EFFORT, CHAT_MODEL
+from backend.history_service import portfolio_history
 from backend.portfolio_service import portfolio_summary
 from backend.snapshot_service import list_snapshots
 from backend.trades_service import list_trades
@@ -67,6 +68,15 @@ TOOLS = [
                 "limit": {"type": "integer", "minimum": 1, "maximum": 365, "description": "Número de velas"},
             },
             "required": ["symbol"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "get_portfolio_history",
+        "description": "Evolución del valor de la cartera y de lo invertido (coste de lo que se tenía) día a día, reconstruida desde las operaciones con precios de cierre de Binance. Devuelve una muestra de puntos del periodo, el primero y el último incluidos.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"range": {"type": "string", "enum": ["1m", "3m", "1y", "all"], "description": "Periodo: último mes, 3 meses, año o todo"}},
             "additionalProperties": False,
         },
     },
@@ -222,6 +232,17 @@ def run_tool(user_id: str, name: str, args) -> str:
         return _to_json(_trades_tool(user_id, args))
     if name == "get_price_history":
         return _to_json(_history_tool(args))
+    if name == "get_portfolio_history":
+        rng = _str_arg(args, "range") or "3m"
+        if rng not in ("1m", "3m", "1y", "all"):
+            raise ToolInputError("'range' tiene que ser 1m, 3m, 1y o all")
+        points = portfolio_history(user_id, rng)["points"]
+        # About 30 points is plenty for the model and keeps the tokens down
+        step = max(1, len(points) // 30)
+        sample = points[::step]
+        if points and sample[-1] is not points[-1]:
+            sample.append(points[-1])
+        return _to_json({"range": rng, "points": sample})
     if name == "get_market_top":
         return _to_json(get_top_market_caps(_int_arg(args, "limit", 10, 1, 50)))
     if name == "list_alerts":

@@ -32,6 +32,7 @@ async function request(path, { method = "GET", json, body, raw = false } = {}) {
 
 export const fetchTrades = () => request("/trades?with_pnl=true");
 export const fetchPortfolio = () => request("/portfolio");
+export const fetchPortfolioHistory = (range = "all") => request(`/portfolio/history?range=${range}`);
 export const createTrade = (payload) => request("/trades", { method: "POST", json: payload });
 export const deleteTradeById = (id) => request(`/trades/${encodeURIComponent(id)}`, { method: "DELETE" });
 export const exportTrades = () => request("/trades/export", { raw: true });

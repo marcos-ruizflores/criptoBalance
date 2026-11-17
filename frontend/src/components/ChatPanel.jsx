@@ -17,6 +17,7 @@ const TOOL_LABELS = {
   get_market_top: "Consultando el mercado",
   list_alerts: "Revisando tus alertas",
   list_snapshots: "Revisando tus snapshots",
+  get_portfolio_history: "Reconstruyendo la evolución",
 };
 
 // The server only needs the last few turns

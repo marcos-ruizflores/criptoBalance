@@ -1,5 +1,55 @@
+import { useEffect, useState } from "react";
+import { fetchPortfolioHistory } from "../api";
 import { assetColor, dateTime, money, pct, price, qty, signedMoney, tone } from "../format";
-import { Asset, Empty, Icon } from "./ui";
+import PortfolioChart from "./PortfolioChart";
+import { Asset, Empty, Icon, Segmented } from "./ui";
+
+const RANGES = [
+  { value: "1m", label: "1M" },
+  { value: "3m", label: "3M" },
+  { value: "1y", label: "1A" },
+  { value: "all", label: "Todo" },
+];
+
+function Evolution({ portfolio }) {
+  const [range, setRange] = useState("all");
+  const [state, setState] = useState({ loading: true, points: [], error: "" });
+
+  // Reload when the range changes or the portfolio does (a trade added or removed)
+  useEffect(() => {
+    let alive = true;
+    setState((s) => ({ ...s, loading: true, error: "" }));
+    fetchPortfolioHistory(range)
+      .then((res) => alive && setState({ loading: false, points: res.points, error: "" }))
+      .catch(() => alive && setState({ loading: false, points: [], error: "No se pudo calcular la evolución ahora mismo." }));
+    return () => {
+      alive = false;
+    };
+  }, [range, portfolio]);
+
+  return (
+    <section className="card">
+      <div className="card-head">
+        <div>
+          <h2>Evolución</h2>
+          <p className="muted small">Valor de la cartera cada día, con precios de cierre de Binance.</p>
+        </div>
+        <Segmented label="Periodo" options={RANGES} value={range} onChange={setRange} />
+      </div>
+      <div className="card-body">
+        {state.error ? (
+          <p className="muted">{state.error}</p>
+        ) : state.points.length < 2 ? (
+          <div className="pchart-placeholder muted">{state.loading ? "Calculando…" : "Hace falta al menos un día de historia."}</div>
+        ) : (
+          <div style={{ opacity: state.loading ? 0.5 : 1, transition: "opacity 0.15s" }}>
+            <PortfolioChart points={state.points} />
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
 
 export default function Overview({ portfolio, snapshots, onNewTrade, onSnapshot, onDeleteSnapshot }) {
   const { items = [], totals = {}, missing_prices: missing = [] } = portfolio;
@@ -57,6 +107,8 @@ export default function Overview({ portfolio, snapshots, onNewTrade, onSnapshot,
           <p className="kpi-sub muted">De las ventas</p>
         </div>
       </section>
+
+      <Evolution portfolio={portfolio} />
 
       <div className="split">
         <section className="card">
