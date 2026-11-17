@@ -16,6 +16,7 @@ import Overview from "./components/Overview";
 import TradesView from "./components/TradesView";
 import MarketView from "./components/MarketView";
 import AlertsView from "./components/AlertsView";
+import TaxView from "./components/TaxView";
 import TradeDialog from "./components/TradeDialog";
 import ChatPanel from "./components/ChatPanel";
 import { Icon, Toast } from "./components/ui";
@@ -25,6 +26,7 @@ const TABS = [
   { id: "trades", label: "Operaciones" },
   { id: "market", label: "Mercado" },
   { id: "alerts", label: "Alertas" },
+  { id: "tax", label: "Renta" },
 ];
 
 const HEADINGS = {
@@ -32,6 +34,7 @@ const HEADINGS = {
   trades: ["Operaciones", "Todas tus compras y ventas."],
   market: ["Mercado", "Histórico de precios y las mayores criptomonedas."],
   alerts: ["Alertas", "Avisos cuando un precio o una ganancia cruza un valor."],
+  tax: ["Renta", "Lo que tus ventas suponen en la declaración, calculado como Hacienda: por FIFO."],
 };
 
 const SESSION_KEY = "criptobalance:session";
@@ -251,6 +254,7 @@ function Dashboard({ user, onLogout }) {
         )}
         {tab === "market" && <MarketView heldAssets={heldAssets} onError={showToast} />}
         {tab === "alerts" && <AlertsView onToast={showToast} />}
+        {tab === "tax" && <TaxView onToast={showToast} />}
       </main>
 
       {/* On phones the top bar scrolls sideways, so the assistant gets a floating button.

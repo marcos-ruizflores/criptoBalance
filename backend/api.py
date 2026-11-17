@@ -18,6 +18,7 @@ from backend.binance_client import get_asset_history, get_top_market_caps
 from backend.config import ALLOWED_ORIGINS, CHAT_DAILY_LIMIT
 from backend.db import ensure_indexes
 from backend.history_service import RANGES, portfolio_history
+from backend.tax_service import tax_report, tax_report_csv
 from backend.portfolio_service import portfolio_summary
 from backend.screenshot_service import IMAGE_TYPES, MAX_IMAGE_BYTES, ExtractionError, extract_trades
 from backend.snapshot_service import delete_snapshot, list_snapshots, take_snapshot
@@ -236,6 +237,21 @@ def get_portfolio_history(range: Literal["1m", "3m", "1y", "all"] = "all", user_
     except Exception as exc:
         logging.getLogger("criptobalance").warning("portfolio history failed: %s", exc)
         raise HTTPException(status_code=502, detail="No se pudo calcular la evolución ahora mismo")
+
+
+@app.get("/tax/report")
+def get_tax_report(year: Optional[int] = Query(None, ge=2009, le=2100), user_id: str = Depends(uid)):
+    return tax_report(user_id, year)
+
+
+@app.get("/tax/report.csv")
+def export_tax_report(year: int = Query(..., ge=2009, le=2100), user_id: str = Depends(uid)):
+    buf = io.BytesIO(tax_report_csv(user_id, year).encode("utf-8"))
+    return StreamingResponse(
+        buf,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="criptobalance-renta-{year}.csv"'},
+    )
 
 
 @app.get("/history")

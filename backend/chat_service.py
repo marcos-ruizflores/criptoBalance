@@ -16,6 +16,7 @@ from backend.alerts_service import list_alerts
 from backend.binance_client import get_asset_history, get_top_market_caps
 from backend.config import ANTHROPIC_API_KEY, CHAT_EFFORT, CHAT_MODEL
 from backend.history_service import portfolio_history
+from backend.tax_service import tax_report
 from backend.portfolio_service import portfolio_summary
 from backend.snapshot_service import list_snapshots
 from backend.trades_service import list_trades
@@ -32,6 +33,7 @@ Responde preguntas sobre la cartera, las operaciones, las alertas y los snapshot
 Cómo funcionan los datos:
 - Los importes están en EUR. El PnL no realizado sale del precio actual; el realizado, de las ventas, con coste medio ponderado.
 - Las operaciones tienen lado BUY o SELL, cantidad, precio unitario y coste total.
+- Para impuestos usa get_tax_report: Hacienda calcula por FIFO, no por coste medio, así que sus cifras pueden diferir del PnL de la cartera. Recuerda que es una estimación y que en País Vasco y Navarra las normas son distintas.
 - Solo puedes leer. Si te piden registrar, borrar o cambiar algo, explica que se hace desde la app (botón «Nueva operación», pestaña Operaciones o Alertas).
 - Para registrar operaciones desde una captura de pantalla, el usuario puede adjuntarla con el clip de este panel o pegarla: la app lee las operaciones y le deja revisarlas antes de guardarlas. Tú no ves las imágenes en esta conversación.
 
@@ -77,6 +79,15 @@ TOOLS = [
         "input_schema": {
             "type": "object",
             "properties": {"range": {"type": "string", "enum": ["1m", "3m", "1y", "all"], "description": "Periodo: último mes, 3 meses, año o todo"}},
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "get_tax_report",
+        "description": "Informe fiscal de un año para la Renta en España (régimen común): cada venta con su coste por FIFO, ganancias, pérdidas, resultado neto y cuota estimada por tramos de la base del ahorro (suponiendo que no hay otras rentas del ahorro). Usa esto para preguntas de impuestos, no get_portfolio, que usa coste medio.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"year": {"type": "integer", "minimum": 2009, "maximum": 2100, "description": "Año fiscal; por defecto el último con ventas"}},
             "additionalProperties": False,
         },
     },
@@ -243,6 +254,15 @@ def run_tool(user_id: str, name: str, args) -> str:
         if points and sample[-1] is not points[-1]:
             sample.append(points[-1])
         return _to_json({"range": rng, "points": sample})
+    if name == "get_tax_report":
+        year = args.get("year")
+        if year is not None and (isinstance(year, bool) or not isinstance(year, int)):
+            raise ToolInputError("'year' tiene que ser un año")
+        report = tax_report(user_id, year)
+        # The per-lot detail is for the CSV, the model only needs the sales
+        for s in report["sales"]:
+            s.pop("lots", None)
+        return _to_json(report)
     if name == "get_market_top":
         return _to_json(get_top_market_caps(_int_arg(args, "limit", 10, 1, 50)))
     if name == "list_alerts":

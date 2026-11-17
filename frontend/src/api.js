@@ -50,6 +50,9 @@ export function extractTrades(file) {
   return request("/trades/extract", { method: "POST", body: formData });
 }
 
+export const fetchTaxReport = (year) => request(`/tax/report${year ? `?year=${year}` : ""}`);
+export const exportTaxReport = (year) => request(`/tax/report.csv?year=${year}`, { raw: true });
+
 export const fetchHistory = (baseAsset, interval = "1d", limit = 90) =>
   request(`/history?base_asset=${encodeURIComponent(baseAsset)}&interval=${interval}&limit=${limit}`);
 export const fetchTopMarketCaps = (limit = 15) => request(`/market/top?limit=${limit}`);

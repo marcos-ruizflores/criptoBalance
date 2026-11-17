@@ -228,6 +228,8 @@ textarea {
 
 .stack {
   display: grid;
+  /* minmax(0, …) so a wide table scrolls inside its card instead of widening the page */
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 
@@ -787,6 +789,78 @@ dialog::backdrop {
   display: grid;
   place-items: center;
   height: 240px;
+}
+
+/* ---------- Tax report ---------- */
+
+.tax-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.notice.warn {
+  border-color: color-mix(in srgb, #b7791f 45%, var(--border));
+  color: var(--text);
+}
+
+.tax-lots {
+  display: block;
+  font-weight: 400;
+}
+
+.tax tfoot td {
+  font-weight: 600;
+  border-top: 1px solid var(--border-strong);
+}
+
+.tax-help h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.tax-help ul {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted);
+}
+
+@media print {
+  :root {
+    --bg: #fff;
+    --surface: #fff;
+    --surface-2: #f4f4f2;
+    --text: #000;
+    --muted: #444;
+    --border: #ccc;
+    --border-strong: #999;
+    --pos: #0b6b4a;
+    --neg: #b3261e;
+  }
+  .topbar,
+  .chat,
+  .chat-fab,
+  .page-head .row,
+  .no-print,
+  .segmented button:not([aria-pressed="true"]) {
+    display: none !important;
+  }
+  .page,
+  .page.with-chat {
+    margin: 0;
+    padding: 0;
+    max-width: none;
+  }
+  .card {
+    break-inside: avoid;
+    box-shadow: none;
+  }
 }
 
 /* ---------- Auth ---------- */

@@ -18,6 +18,7 @@ const TOOL_LABELS = {
   list_alerts: "Revisando tus alertas",
   list_snapshots: "Revisando tus snapshots",
   get_portfolio_history: "Reconstruyendo la evolución",
+  get_tax_report: "Calculando tus impuestos",
 };
 
 // The server only needs the last few turns
