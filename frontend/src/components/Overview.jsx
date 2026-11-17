@@ -2,14 +2,18 @@ import { assetColor, dateTime, money, pct, price, qty, signedMoney, tone } from 
 import { Asset, Empty, Icon } from "./ui";
 
 export default function Overview({ portfolio, snapshots, onNewTrade, onSnapshot, onDeleteSnapshot }) {
-  const { items = [], totals = {} } = portfolio;
+  const { items = [], totals = {}, missing_prices: missing = [] } = portfolio;
+  // Positions without a live price still show what they cost, but stay out of value and PnL
+  const priced = items.filter((i) => i.current_value_fiat !== null && i.current_value_fiat !== undefined);
   const value = Number(totals.total_value_fiat) || 0;
   const invested = items.reduce((acc, i) => acc + Number(i.total_cost_fiat || 0), 0);
+  const pricedInvested = priced.reduce((acc, i) => acc + Number(i.total_cost_fiat || 0), 0);
   const unrealized = Number(totals.total_unrealized_pnl_fiat) || 0;
-  const unrealizedPct = invested ? (unrealized / invested) * 100 : 0;
+  const unrealizedPct = pricedInvested ? (unrealized / pricedInvested) * 100 : 0;
 
-  const sorted = [...items].sort((a, b) => Number(b.current_value_fiat) - Number(a.current_value_fiat));
-  const byPnl = [...items].sort((a, b) => Number(b.pnl_pct) - Number(a.pnl_pct));
+  const sorted = [...items].sort((a, b) => Number(b.current_value_fiat ?? -1) - Number(a.current_value_fiat ?? -1));
+  const byPnl = [...priced].sort((a, b) => Number(b.pnl_pct) - Number(a.pnl_pct));
+  const pricedSorted = sorted.filter((p) => priced.includes(p));
 
   if (!items.length) {
     return (
@@ -26,6 +30,11 @@ export default function Overview({ portfolio, snapshots, onNewTrade, onSnapshot,
 
   return (
     <div className="stack">
+      {missing.length > 0 && (
+        <p className="notice" role="status">
+          Binance no ha devuelto precio para {missing.join(", ")}. Esas posiciones salen sin valor actual y no cuentan en el total.
+        </p>
+      )}
       <section className="card kpis" aria-label="Resumen de la cartera">
         <div className="kpi">
           <p className="kpi-label">Valor actual</p>
@@ -94,12 +103,12 @@ export default function Overview({ portfolio, snapshots, onNewTrade, onSnapshot,
             </div>
             <div className="card-body">
               <div className="alloc-bar" aria-hidden="true">
-                {sorted.map((p) => (
+                {pricedSorted.map((p) => (
                   <span key={p.symbol} style={{ width: `${(Number(p.current_value_fiat) / value) * 100}%`, background: assetColor(p.base_asset) }} />
                 ))}
               </div>
               <ul className="alloc-list">
-                {sorted.map((p) => (
+                {pricedSorted.map((p) => (
                   <li key={p.symbol}>
                     <span className="dot" style={{ background: assetColor(p.base_asset) }} />
                     <span>{p.base_asset}</span>

@@ -1,7 +1,10 @@
+import logging
 from collections import defaultdict
 from backend.db import trades_col
 from backend.binance_client import get_price_for_asset
 from backend.config import DEFAULT_QUOTE_ASSET, FIAT_CURRENCY, FIAT_RATE
+
+log = logging.getLogger("criptobalance")
 
 
 def _base_asset_from_trade(trade: dict) -> str:
@@ -23,7 +26,7 @@ def portfolio_summary(user_id: str):
         base = _base_asset_from_trade(t)
         side = (t.get("side") or "BUY").upper()
         qty = float(t.get("quantity", 0) or 0)
-        cost_fiat = float(t.get("total_cost_fiat") or (t.get("price_fiat", 0) * qty) or 0)
+        cost_fiat = float(t.get("total_cost_fiat") or (float(t.get("price_fiat") or 0) * qty) or 0)
         pos = positions[base]
 
         if side == "BUY":
@@ -41,14 +44,30 @@ def portfolio_summary(user_id: str):
             pos["cost_fiat"] -= avg_cost * sell_qty
 
     items = []
+    missing_prices = []
     for base, pos in positions.items():
         qty = pos["quantity"]
         if qty <= 0:
             continue
         try:
             current_price_quote, quote_used = get_price_for_asset(base)
-        except Exception:
-            # If Binance fails for one asset, skip it instead of breaking the whole summary.
+        except Exception as exc:
+            # Keep the position (what you hold and what it cost) even without a live price
+            log.warning("no price for %s: %s", base, exc)
+            missing_prices.append(base)
+            items.append(
+                {
+                    "base_asset": base,
+                    "symbol": base,
+                    "total_quantity": qty,
+                    "avg_price_fiat": pos["cost_fiat"] / qty,
+                    "current_price_fiat": None,
+                    "current_value_fiat": None,
+                    "total_cost_fiat": pos["cost_fiat"],
+                    "pnl_fiat": None,
+                    "pnl_pct": None,
+                }
+            )
             continue
         conversion_rate = 1.0 if quote_used.upper() == FIAT_CURRENCY.upper() else float(FIAT_RATE)
         current_price_fiat = current_price_quote * conversion_rate
@@ -72,8 +91,9 @@ def portfolio_summary(user_id: str):
             }
         )
 
-    total_value = sum(i["current_value_fiat"] for i in items)
-    total_unrealized = sum(i["pnl_fiat"] for i in items)
+    priced = [i for i in items if i["current_value_fiat"] is not None]
+    total_value = sum(i["current_value_fiat"] for i in priced)
+    total_unrealized = sum(i["pnl_fiat"] for i in priced)
     totals = {
         "total_value_fiat": total_value,
         "total_pnl_fiat": total_realized + total_unrealized,
@@ -81,7 +101,7 @@ def portfolio_summary(user_id: str):
         "total_unrealized_pnl_fiat": total_unrealized,
     }
 
-    sorted_items = sorted(items, key=lambda i: i["pnl_pct"])
+    sorted_items = sorted(priced, key=lambda i: i["pnl_pct"])
     top_gainers = list(reversed(sorted_items))[:3]
     top_losers = sorted_items[:3]
 
@@ -90,6 +110,7 @@ def portfolio_summary(user_id: str):
         "totals": totals,
         "top_gainers": top_gainers,
         "top_losers": top_losers,
+        "missing_prices": missing_prices,
     }
 
 
