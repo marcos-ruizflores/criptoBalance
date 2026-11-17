@@ -20,5 +20,9 @@ services:
         value: criptoBalance
       - key: JWT_SECRET
         generateValue: true
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CHAT_MODEL
+        value: claude-haiku-5-5
       - key: ALLOWED_ORIGINS
         value: https://marcos-ruizflores.github.io

@@ -55,5 +55,39 @@ export const createAlert = (payload) => request("/alerts", { method: "POST", jso
 export const deleteAlertById = (id) => request(`/alerts/${encodeURIComponent(id)}`, { method: "DELETE" });
 export const evaluateAlerts = () => request("/alerts/evaluate", { method: "POST" });
 
+// The assistant answers as NDJSON, one event per line, so text shows up as it's written.
+// EventSource can't send the Authorization header, hence fetch + a stream reader.
+export async function streamChat(messages, onEvent, signal) {
+  const res = await fetch(`${API_URL}/chat`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ messages }),
+    signal,
+  });
+  if (res.status === 401) onUnauthorized();
+  if (!res.ok) {
+    let detail = "";
+    try {
+      detail = (await res.json()).detail;
+    } catch {}
+    throw new Error(typeof detail === "string" && detail ? detail : `Error HTTP ${res.status}`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop();
+    for (const line of lines) {
+      if (line.trim()) onEvent(JSON.parse(line));
+    }
+  }
+  if (buffer.trim()) onEvent(JSON.parse(buffer));
+}
+
 export const signup = (payload) => request("/auth/signup", { method: "POST", json: payload });
 export const login = (payload) => request("/auth/login", { method: "POST", json: payload });

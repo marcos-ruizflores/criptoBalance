@@ -17,6 +17,7 @@ import TradesView from "./components/TradesView";
 import MarketView from "./components/MarketView";
 import AlertsView from "./components/AlertsView";
 import TradeDialog from "./components/TradeDialog";
+import ChatPanel from "./components/ChatPanel";
 import { Icon, Toast } from "./components/ui";
 
 const TABS = [
@@ -87,6 +88,7 @@ function Dashboard({ user, onLogout }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
   const clearToast = useCallback(() => setToast(""), []);
   const showToast = useCallback((msg) => setToast(msg), []);
@@ -204,6 +206,9 @@ function Dashboard({ user, onLogout }) {
             ))}
           </nav>
           <div className="user">
+            <button className="btn btn-ghost chat-toggle" onClick={() => setChatOpen((o) => !o)} aria-expanded={chatOpen} aria-controls="chat-panel">
+              <Icon name="chat" size={15} /> Asistente
+            </button>
             <span className="user-email">{user.email}</span>
             <button className="btn btn-ghost" onClick={onLogout} aria-label="Cerrar sesión" title="Cerrar sesión">
               <Icon name="logout" size={15} />
@@ -212,7 +217,7 @@ function Dashboard({ user, onLogout }) {
         </div>
       </header>
 
-      <main className="page">
+      <main className={`page ${chatOpen ? "with-chat" : ""}`}>
         <div className="page-head">
           <div>
             <h1>{title}</h1>
@@ -246,6 +251,14 @@ function Dashboard({ user, onLogout }) {
         {tab === "alerts" && <AlertsView onToast={showToast} />}
       </main>
 
+      {/* On phones the top bar scrolls sideways, so the assistant gets a floating button.
+          It lives outside the header: backdrop-filter there would pin it to the bar. */}
+      {!chatOpen && (
+        <button className="btn chat-fab" onClick={() => setChatOpen(true)} aria-label="Abrir asistente">
+          <Icon name="chat" size={20} />
+        </button>
+      )}
+      <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
       <TradeDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onSubmit={handleCreate} saving={saving} />
       <Toast message={toast} onDone={clearToast} />
     </>

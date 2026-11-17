@@ -1,6 +1,6 @@
 import io
 from contextlib import asynccontextmanager
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 from fastapi import Depends, FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,8 +10,9 @@ from pydantic import BaseModel, Field
 
 from backend.alerts_service import create_alert, delete_alert, evaluate_alerts, list_alerts
 from backend.auth_service import LoginLimiter, authenticate_user, create_user, issue_token, user_from_token
+from backend.chat_service import ChatLimiter, chat_enabled, stream_answer
 from backend.binance_client import get_asset_history, get_top_market_caps
-from backend.config import ALLOWED_ORIGINS
+from backend.config import ALLOWED_ORIGINS, CHAT_DAILY_LIMIT
 from backend.db import ensure_indexes
 from backend.portfolio_service import portfolio_summary
 from backend.snapshot_service import delete_snapshot, list_snapshots, take_snapshot
@@ -47,6 +48,7 @@ app.add_middleware(
 
 bearer = HTTPBearer(auto_error=False)
 login_limiter = LoginLimiter()
+chat_limiter = ChatLimiter(CHAT_DAILY_LIMIT)
 
 
 def current_user(creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)) -> dict:
@@ -85,6 +87,16 @@ class SignupIn(BaseModel):
 class LoginIn(BaseModel):
     email: str = Field(..., max_length=254)
     password: str = Field(..., max_length=200)
+
+
+class ChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(..., min_length=1, max_length=4000)
+
+
+class ChatIn(BaseModel):
+    # Only the recent turns, so a long chat doesn't keep growing the cost of every question
+    messages: List[ChatTurn] = Field(..., min_length=1, max_length=20)
 
 
 @app.get("/health")
@@ -235,3 +247,20 @@ def remove_alert(alert_id: str, user_id: str = Depends(uid)):
 @app.post("/alerts/evaluate")
 def eval_alerts(user: dict = Depends(current_user)):
     return {"triggered": evaluate_alerts(user)}
+
+
+@app.post("/chat")
+def chat(payload: ChatIn, user_id: str = Depends(uid)):
+    if not chat_enabled():
+        raise HTTPException(status_code=503, detail="El asistente no está configurado")
+    turns = [t.model_dump() for t in payload.messages]
+    if turns[0]["role"] != "user" or turns[-1]["role"] != "user":
+        raise HTTPException(status_code=400, detail="La conversación tiene que empezar y acabar con una pregunta")
+    if not chat_limiter.allow(user_id):
+        raise HTTPException(status_code=429, detail="Has llegado al límite de preguntas de hoy")
+    return StreamingResponse(
+        stream_answer(user_id, turns),
+        media_type="application/x-ndjson",
+        # Stop proxies from buffering the stream
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

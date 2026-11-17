@@ -12,6 +12,9 @@ const paths = {
   logout: "M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11",
   camera: "M4 8h3l2-3h6l2 3h3v11H4zM12 17a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z",
   bell: "M6 16V11a6 6 0 1 1 12 0v5l2 2H4l2-2ZM10 20a2 2 0 0 0 4 0",
+  chat: "M5 5h14v10H9l-4 4zM9 9h6M9 12h4",
+  send: "M5 12h13M13 6l6 6-6 6",
+  close: "M6 6l12 12M18 6 6 18",
 };
 
 export function Icon({ name, size = 16 }) {

@@ -22,6 +22,12 @@ JWT_TTL_HOURS = int(os.getenv("JWT_TTL_HOURS", "168"))
 # Frontends allowed to call the API, comma separated
 ALLOWED_ORIGINS = [o.strip().rstrip("/") for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",") if o.strip()]
 
+# Portfolio assistant. Without a key the chat endpoint answers 503 and the rest works as usual.
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+CHAT_MODEL = os.getenv("CHAT_MODEL", "claude-haiku-5-5")
+CHAT_EFFORT = os.getenv("CHAT_EFFORT", "medium")
+CHAT_DAILY_LIMIT = int(os.getenv("CHAT_DAILY_LIMIT", "40"))
+
 # General settings
 DEFAULT_QUOTE_ASSET = "USDT"
 FIAT_CURRENCY = "EUR"

@@ -6,3 +6,4 @@ python-multipart
 bcrypt>=4.0.1
 PyJWT>=2.8
 python-dotenv
+anthropic>=2.0
