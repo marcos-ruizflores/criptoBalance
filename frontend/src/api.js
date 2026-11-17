@@ -42,6 +42,13 @@ export function importTrades(file) {
   return request("/trades/import", { method: "POST", body: formData });
 }
 
+// Reads trades from a screenshot. Returns them for review, nothing is saved.
+export function extractTrades(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return request("/trades/extract", { method: "POST", body: formData });
+}
+
 export const fetchHistory = (baseAsset, interval = "1d", limit = 90) =>
   request(`/history?base_asset=${encodeURIComponent(baseAsset)}&interval=${interval}&limit=${limit}`);
 export const fetchTopMarketCaps = (limit = 15) => request(`/market/top?limit=${limit}`);

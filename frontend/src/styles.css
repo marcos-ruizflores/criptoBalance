@@ -989,6 +989,159 @@ dialog::backdrop {
   font-size: 11px;
 }
 
+/* Screenshot import inside the assistant */
+
+.chat-image {
+  display: block;
+  max-width: 100%;
+  max-height: 180px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.chat-msg.user:has(.chat-image) {
+  padding: 0;
+  background: none;
+}
+
+.chat-drop {
+  position: absolute;
+  inset: 8px;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--border-strong);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.chat-msg.assistant:has(.extract) {
+  align-self: stretch;
+}
+
+.extract {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.extract-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.extract-row {
+  margin: 0;
+  padding: 10px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: opacity 0.15s;
+}
+
+.extract-row.is-off {
+  opacity: 0.55;
+}
+
+.extract-row.is-saved {
+  border-color: color-mix(in srgb, var(--pos) 40%, var(--border));
+}
+
+.extract-row.is-failed {
+  border-color: color-mix(in srgb, var(--neg) 50%, var(--border));
+}
+
+.extract-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.extract-top select {
+  width: auto;
+  flex: none;
+}
+
+.extract-asset {
+  width: 80px;
+  font-weight: 600;
+}
+
+.extract-top .badge {
+  margin-left: auto;
+}
+
+.extract-check {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.extract-check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--ink);
+}
+
+.extract-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px 8px;
+}
+
+.extract-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.extract-grid span {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.extract-grid .input {
+  width: 100%;
+  min-width: 0;
+  padding: 0 8px;
+}
+
+.extract-grid label:last-child {
+  grid-column: 1 / -1;
+}
+
+.extract-flag {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.extract-flag.warn {
+  color: #b7791f;
+}
+
+@media (prefers-color-scheme: dark) {
+  .extract-flag.warn {
+    color: #f0b44c;
+  }
+}
+
+.extract-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .toast,
   .chat-status {

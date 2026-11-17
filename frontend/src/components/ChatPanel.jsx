@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import { streamChat } from "../api";
+import { extractTrades, streamChat } from "../api";
+import ExtractCard, { toRows } from "./ExtractCard";
 import { Icon } from "./ui";
 
 const SUGGESTIONS = [
@@ -20,6 +21,18 @@ const TOOL_LABELS = {
 
 // The server only needs the last few turns
 const HISTORY_SENT = 12;
+
+const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+const MAX_IMAGE_MB = 5;
+
+// request() throws the raw response body; pull FastAPI's "detail" out of it
+function errorText(err, fallback) {
+  try {
+    const detail = JSON.parse(err.message).detail;
+    if (typeof detail === "string") return detail;
+  } catch {}
+  return fallback;
+}
 
 // Just enough markdown for the answers: paragraphs, "- " lists and **bold**
 function inline(text) {
@@ -66,7 +79,7 @@ function RichText({ text }) {
     );
 }
 
-export default function ChatPanel({ open, onClose }) {
+export default function ChatPanel({ open, onClose, onTradesSaved }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -74,17 +87,36 @@ export default function ChatPanel({ open, onClose }) {
   const bodyRef = useRef(null);
   const inputRef = useRef(null);
   const abortRef = useRef(null);
+  const fileRef = useRef(null);
+  const imageUrls = useRef([]);
+  const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  // Follow new messages and streamed text, but not edits inside a screenshot card
+  const last = messages[messages.length - 1];
   useEffect(() => {
     const el = bodyRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages, status]);
+  }, [messages.length, status, last?.text, last?.error]);
 
-  useEffect(() => () => abortRef.current?.abort(), []);
+  // When a screenshot's trades arrive, start at the image so the summary is in view
+  const extractedKey = last?.kind === "extract" && last.rows ? last.key : null;
+  useEffect(() => {
+    const el = bodyRef.current;
+    const image = el?.lastElementChild?.previousElementSibling;
+    if (extractedKey && image) el.scrollTop = image.offsetTop - el.offsetTop - 12;
+  }, [extractedKey]);
+
+  useEffect(
+    () => () => {
+      abortRef.current?.abort();
+      imageUrls.current.forEach(URL.revokeObjectURL);
+    },
+    []
+  );
 
   const updateLast = (fn) =>
     setMessages((prev) => {
@@ -98,8 +130,8 @@ export default function ChatPanel({ open, onClose }) {
     if (!question || busy) return;
     setInput("");
 
-    // Failed answers aren't sent back, they'd only confuse the model
-    const history = [...messages.filter((m) => !m.error && m.text), { role: "user", text: question }]
+    // Failed answers and screenshot turns aren't sent back, they'd only confuse the model
+    const history = [...messages.filter((m) => !m.error && !m.local && m.text), { role: "user", text: question }]
       .slice(-HISTORY_SENT)
       .map((m) => ({ role: m.role, content: m.text }));
     while (history.length && history[0].role !== "user") history.shift();
@@ -140,13 +172,77 @@ export default function ChatPanel({ open, onClose }) {
     }
   };
 
+  const setExtractRows = (rows) =>
+    setMessages((prev) => prev.map((m) => (m.kind === "extract" && m.rows && m.key === rows.key ? { ...m, rows: rows.list } : m)));
+
+  const readScreenshot = async (file) => {
+    if (!file || busy) return;
+    if (!IMAGE_TYPES.includes(file.type)) {
+      setMessages((prev) => [...prev, { role: "assistant", local: true, text: "", error: "Sube una imagen PNG, JPG, WEBP o GIF." }]);
+      return;
+    }
+    if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
+      setMessages((prev) => [...prev, { role: "assistant", local: true, text: "", error: `La imagen no puede pasar de ${MAX_IMAGE_MB} MB.` }]);
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    imageUrls.current.push(url);
+    const key = url;
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", local: true, image: url },
+      { role: "assistant", local: true, kind: "extract", key, text: "" },
+    ]);
+    setBusy(true);
+    setStatus("Leyendo la captura");
+    try {
+      const res = await extractTrades(file);
+      setMessages((prev) => prev.map((m) => (m.key === key ? { ...m, rows: toRows(res.trades), notes: res.notes } : m)));
+    } catch (err) {
+      const msg = errorText(err, "No se pudo leer la captura.");
+      setMessages((prev) => prev.map((m) => (m.key === key ? { ...m, error: msg } : m)));
+    } finally {
+      setBusy(false);
+      setStatus("");
+    }
+  };
+
+  const onPaste = (e) => {
+    const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith("image/"));
+    if (item) {
+      e.preventDefault();
+      readScreenshot(item.getAsFile());
+    }
+  };
+
   const reset = () => {
     abortRef.current?.abort();
     setMessages([]);
   };
 
   return (
-    <aside id="chat-panel" className={`chat ${open ? "is-open" : ""}`} aria-label="Asistente" aria-hidden={!open} inert={open ? undefined : ""}>
+    <aside
+      id="chat-panel"
+      className={`chat ${open ? "is-open" : ""} ${dragging ? "is-dragging" : ""}`}
+      aria-label="Asistente"
+      aria-hidden={!open}
+      inert={open ? undefined : ""}
+      onDragOver={(e) => {
+        if ([...e.dataTransfer.types].includes("Files")) {
+          e.preventDefault();
+          setDragging(true);
+        }
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setDragging(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragging(false);
+        readScreenshot(e.dataTransfer.files?.[0]);
+      }}
+    >
       <header className="chat-head">
         <div>
           <h2>Asistente</h2>
@@ -168,6 +264,10 @@ export default function ChatPanel({ open, onClose }) {
         {messages.length === 0 ? (
           <div className="chat-empty">
             <p className="muted">Responde con tus datos reales: posiciones, PnL, operaciones, alertas y precios de Binance.</p>
+            <p className="muted">
+              También puedes pasarme una captura de tus operaciones con <Icon name="clip" size={13} /> (o pegándola) y te las preparo para
+              registrar.
+            </p>
             <div className="chat-suggestions">
               {SUGGESTIONS.map((s) => (
                 <button key={s} className="chat-suggestion" onClick={() => send(s)}>
@@ -179,10 +279,20 @@ export default function ChatPanel({ open, onClose }) {
         ) : (
           messages.map((m, i) => (
             <div key={i} className={`chat-msg ${m.role}`}>
-              {m.role === "user" ? (
+              {m.image ? (
+                <img className="chat-image" src={m.image} alt="Captura enviada" />
+              ) : m.role === "user" ? (
                 <p>{m.text}</p>
               ) : (
                 <>
+                  {m.kind === "extract" && m.rows && (
+                    <ExtractCard
+                      rows={m.rows}
+                      notes={m.notes}
+                      onChange={(list) => setExtractRows({ key: m.key, list })}
+                      onSaved={(n) => onTradesSaved?.(n)}
+                    />
+                  )}
                   {m.text && <RichText text={m.text} />}
                   {m.error && <p className="chat-error">{m.error}</p>}
                   {i === messages.length - 1 && status && <p className="chat-status">{status}…</p>}
@@ -200,6 +310,26 @@ export default function ChatPanel({ open, onClose }) {
           send(input);
         }}
       >
+        <input
+          ref={fileRef}
+          type="file"
+          accept={IMAGE_TYPES.join(",")}
+          hidden
+          onChange={(e) => {
+            readScreenshot(e.target.files?.[0]);
+            e.target.value = "";
+          }}
+        />
+        <button
+          type="button"
+          className="btn btn-ghost btn-send"
+          onClick={() => fileRef.current?.click()}
+          disabled={busy}
+          aria-label="Adjuntar captura de operaciones"
+          title="Adjuntar captura de operaciones"
+        >
+          <Icon name="clip" size={16} />
+        </button>
         <textarea
           ref={inputRef}
           className="input"
@@ -208,6 +338,7 @@ export default function ChatPanel({ open, onClose }) {
           maxLength={2000}
           placeholder="Escribe tu pregunta"
           onChange={(e) => setInput(e.target.value)}
+          onPaste={onPaste}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -219,6 +350,7 @@ export default function ChatPanel({ open, onClose }) {
           <Icon name="send" size={15} />
         </button>
       </form>
+      {dragging && <div className="chat-drop">Suelta la captura aquí</div>}
       <p className="chat-foot muted small">Funciona con Claude. No es asesoramiento financiero.</p>
     </aside>
   );

@@ -1,7 +1,10 @@
 import io
+import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from typing import List, Literal, Optional
 
+import anthropic
 from fastapi import Depends, FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -15,6 +18,7 @@ from backend.binance_client import get_asset_history, get_top_market_caps
 from backend.config import ALLOWED_ORIGINS, CHAT_DAILY_LIMIT
 from backend.db import ensure_indexes
 from backend.portfolio_service import portfolio_summary
+from backend.screenshot_service import IMAGE_TYPES, MAX_IMAGE_BYTES, ExtractionError, extract_trades
 from backend.snapshot_service import delete_snapshot, list_snapshots, take_snapshot
 from backend.trades_service import (
     delete_trade,
@@ -68,6 +72,7 @@ class TradeIn(BaseModel):
     price_fiat: float = Field(..., gt=0, description="Precio unitario en moneda fiat")
     total_cost_fiat: Optional[float] = Field(None, gt=0, description="Coste total en fiat (opcional, se calcula si falta)")
     side: Literal["BUY", "SELL"] = "BUY"
+    timestamp: Optional[datetime] = Field(None, description="Cuándo se hizo (por defecto, ahora)")
 
 
 class AlertIn(BaseModel):
@@ -137,6 +142,17 @@ def get_trades(with_pnl: bool = True, user_id: str = Depends(uid)):
     return [to_public_trade(t) for t in trades]
 
 
+def _trade_time(ts: Optional[datetime]) -> Optional[datetime]:
+    if ts is None:
+        return None
+    # Stored as naive UTC like the rest of the trades
+    if ts.tzinfo is not None:
+        ts = ts.astimezone(timezone.utc).replace(tzinfo=None)
+    if ts > datetime.utcnow() + timedelta(days=1) or ts.year < 2009:
+        raise HTTPException(status_code=400, detail="La fecha de la operación no es válida")
+    return ts
+
+
 @app.post("/trades", status_code=201)
 def create_trade(payload: TradeIn, user_id: str = Depends(uid)):
     trade_id = register_trade(
@@ -145,6 +161,7 @@ def create_trade(payload: TradeIn, user_id: str = Depends(uid)):
         payload.quantity,
         payload.price_fiat,
         payload.total_cost_fiat,
+        timestamp=_trade_time(payload.timestamp),
         side=payload.side,
     )
     trade = get_trade(user_id, str(trade_id))
@@ -158,6 +175,28 @@ def remove_trade(trade_id: str, user_id: str = Depends(uid)):
     if not delete_trade(user_id, trade_id):
         raise HTTPException(status_code=404, detail="Operación no encontrada")
     return {"deleted": True}
+
+
+@app.post("/trades/extract")
+def extract_from_screenshot(file: UploadFile = File(...), user_id: str = Depends(uid)):
+    """Reads trades from a screenshot. Saves nothing, the client confirms each row."""
+    if not chat_enabled():
+        raise HTTPException(status_code=503, detail="El asistente no está configurado")
+    if file.content_type not in IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail="Sube una imagen PNG, JPG, WEBP o GIF")
+    image = file.file.read(MAX_IMAGE_BYTES + 1)
+    if len(image) > MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=413, detail="La imagen no puede pasar de 5 MB")
+    # Shares the daily allowance with the chat
+    if not chat_limiter.allow(user_id):
+        raise HTTPException(status_code=429, detail="Has llegado al límite de preguntas de hoy")
+    try:
+        return extract_trades(user_id, image, file.content_type)
+    except ExtractionError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except anthropic.APIError as exc:
+        logging.getLogger("criptobalance").error("screenshot extraction failed: %s", exc)
+        raise HTTPException(status_code=502, detail="El asistente no está disponible ahora mismo")
 
 
 @app.get("/trades/export")

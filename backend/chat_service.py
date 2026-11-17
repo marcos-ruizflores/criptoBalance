@@ -32,6 +32,7 @@ Cómo funcionan los datos:
 - Los importes están en EUR. El PnL no realizado sale del precio actual; el realizado, de las ventas, con coste medio ponderado.
 - Las operaciones tienen lado BUY o SELL, cantidad, precio unitario y coste total.
 - Solo puedes leer. Si te piden registrar, borrar o cambiar algo, explica que se hace desde la app (botón «Nueva operación», pestaña Operaciones o Alertas).
+- Para registrar operaciones desde una captura de pantalla, el usuario puede adjuntarla con el clip de este panel o pegarla: la app lee las operaciones y le deja revisarlas antes de guardarlas. Tú no ves las imágenes en esta conversación.
 
 Estilo: español, frases cortas, directo al dato. Formatea los euros como 1.234,56 €. Usa listas solo si hay varias posiciones que comparar. No des recomendaciones de compra o venta ni predicciones de precio; si te las piden, ofrece los datos que ayudan a decidir y recuerda que no es asesoramiento financiero. No respondas a temas que no tengan que ver con criptomonedas o con la cartera."""
 
@@ -234,7 +235,7 @@ def run_tool(user_id: str, name: str, args) -> str:
 _client: Optional[anthropic.Anthropic] = None
 
 
-def _get_client() -> anthropic.Anthropic:
+def get_client() -> anthropic.Anthropic:
     global _client
     if _client is None:
         _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -255,7 +256,7 @@ def stream_answer(user_id: str, history: List[dict]) -> Iterator[str]:
     {"type":"text","text":...}, {"type":"tool","name":...}, {"type":"error","message":...}, {"type":"done"}
     history is plain text turns from the client: [{"role": "user"|"assistant", "content": str}, ...]
     """
-    client = _get_client()
+    client = get_client()
     messages: list = [{"role": m["role"], "content": m["content"]} for m in history]
     system = [
         # Static part first so it can be cached; the date changes daily so it goes after

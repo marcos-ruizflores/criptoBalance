@@ -258,7 +258,14 @@ function Dashboard({ user, onLogout }) {
           <Icon name="chat" size={20} />
         </button>
       )}
-      <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
+      <ChatPanel
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        onTradesSaved={(n) => {
+          setToast(n === 1 ? "1 operación registrada" : `${n} operaciones registradas`);
+          loadData();
+        }}
+      />
       <TradeDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onSubmit={handleCreate} saving={saving} />
       <Toast message={toast} onDone={clearToast} />
     </>

@@ -15,6 +15,7 @@ const paths = {
   chat: "M5 5h14v10H9l-4 4zM9 9h6M9 12h4",
   send: "M5 12h13M13 6l6 6-6 6",
   close: "M6 6l12 12M18 6 6 18",
+  clip: "M20 11.5 12.2 19.3a5 5 0 0 1-7-7l8-8a3.4 3.4 0 0 1 4.8 4.8l-8 8a1.7 1.7 0 0 1-2.4-2.4L15 7.3",
 };
 
 export function Icon({ name, size = 16 }) {
