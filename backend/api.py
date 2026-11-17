@@ -15,7 +15,8 @@ from backend.alerts_service import create_alert, delete_alert, evaluate_alerts, 
 from backend.auth_service import LoginLimiter, authenticate_user, create_user, issue_token, user_from_token
 from backend.chat_service import ChatLimiter, chat_enabled, stream_answer
 from backend.binance_client import get_asset_history, get_top_market_caps
-from backend.config import ALLOWED_ORIGINS, CHAT_DAILY_LIMIT
+from backend.config import ALLOWED_ORIGINS, CHAT_DAILY_LIMIT, CHAT_DEMO_DAILY_LIMIT
+from backend.demo_service import demo_user
 from backend.db import ensure_indexes
 from backend.history_service import RANGES, portfolio_history
 from backend.tax_service import tax_report, tax_report_csv
@@ -133,6 +134,17 @@ def login(payload: LoginIn, request: Request):
     return {"user": user, "token": issue_token(user)}
 
 
+@app.post("/auth/demo")
+def demo_login():
+    """Signs into the shared demo account, reset to its sample data at most hourly."""
+    user = demo_user()
+    return {"user": user, "token": issue_token(user)}
+
+
+def _chat_allowed(user: dict) -> bool:
+    return chat_limiter.allow(user["_id"], CHAT_DEMO_DAILY_LIMIT if user.get("demo") else None)
+
+
 @app.get("/auth/me")
 def me(user: dict = Depends(current_user)):
     return user
@@ -180,7 +192,7 @@ def remove_trade(trade_id: str, user_id: str = Depends(uid)):
 
 
 @app.post("/trades/extract")
-def extract_from_screenshot(file: UploadFile = File(...), user_id: str = Depends(uid)):
+def extract_from_screenshot(file: UploadFile = File(...), user: dict = Depends(current_user)):
     """Reads trades from a screenshot. Saves nothing, the client confirms each row."""
     if not chat_enabled():
         raise HTTPException(status_code=503, detail="El asistente no está configurado")
@@ -190,10 +202,10 @@ def extract_from_screenshot(file: UploadFile = File(...), user_id: str = Depends
     if len(image) > MAX_IMAGE_BYTES:
         raise HTTPException(status_code=413, detail="La imagen no puede pasar de 5 MB")
     # Shares the daily allowance with the chat
-    if not chat_limiter.allow(user_id):
+    if not _chat_allowed(user):
         raise HTTPException(status_code=429, detail="Has llegado al límite de preguntas de hoy")
     try:
-        return extract_trades(user_id, image, file.content_type)
+        return extract_trades(user["_id"], image, file.content_type)
     except ExtractionError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except anthropic.APIError as exc:
@@ -315,16 +327,16 @@ def eval_alerts(user: dict = Depends(current_user)):
 
 
 @app.post("/chat")
-def chat(payload: ChatIn, user_id: str = Depends(uid)):
+def chat(payload: ChatIn, user: dict = Depends(current_user)):
     if not chat_enabled():
         raise HTTPException(status_code=503, detail="El asistente no está configurado")
     turns = [t.model_dump() for t in payload.messages]
     if turns[0]["role"] != "user" or turns[-1]["role"] != "user":
         raise HTTPException(status_code=400, detail="La conversación tiene que empezar y acabar con una pregunta")
-    if not chat_limiter.allow(user_id):
+    if not _chat_allowed(user):
         raise HTTPException(status_code=429, detail="Has llegado al límite de preguntas de hoy")
     return StreamingResponse(
-        stream_answer(user_id, turns),
+        stream_answer(user["_id"], turns),
         media_type="application/x-ndjson",
         # Stop proxies from buffering the stream
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},

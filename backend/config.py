@@ -27,6 +27,8 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 CHAT_MODEL = os.getenv("CHAT_MODEL", "claude-haiku-5-5")
 CHAT_EFFORT = os.getenv("CHAT_EFFORT", "medium")
 CHAT_DAILY_LIMIT = int(os.getenv("CHAT_DAILY_LIMIT", "40"))
+# The demo account is shared by every visitor, so it gets its own, larger pool
+CHAT_DEMO_DAILY_LIMIT = int(os.getenv("CHAT_DEMO_DAILY_LIMIT", "100"))
 
 # General settings
 DEFAULT_QUOTE_ASSET = "USDT"

@@ -127,12 +127,12 @@ class ChatLimiter:
         self.per_day = per_day
         self._hits = defaultdict(deque)
 
-    def allow(self, user_id: str) -> bool:
+    def allow(self, user_id: str, limit: Optional[int] = None) -> bool:
         q = self._hits[user_id]
         cutoff = time.monotonic() - 86400
         while q and q[0] < cutoff:
             q.popleft()
-        if len(q) >= self.per_day:
+        if len(q) >= (limit or self.per_day):
             return False
         q.append(time.monotonic())
         return True

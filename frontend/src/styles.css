@@ -934,6 +934,33 @@ dialog::backdrop {
   font-size: 13px;
 }
 
+.auth-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+  text-align: center;
+}
+
+.auth-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--subtle);
+  font-size: 12px;
+}
+
+.auth-or::before,
+.auth-or::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+
+.demo-banner {
+  margin-bottom: 20px;
+}
+
 /* ---------- Toast ---------- */
 
 .toast {

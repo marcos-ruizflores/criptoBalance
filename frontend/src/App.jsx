@@ -214,7 +214,7 @@ function Dashboard({ user, onLogout }) {
             <button className="btn btn-ghost chat-toggle" onClick={() => setChatOpen((o) => !o)} aria-expanded={chatOpen} aria-controls="chat-panel">
               <Icon name="chat" size={15} /> Asistente
             </button>
-            <span className="user-email">{user.email}</span>
+            <span className="user-email">{user.demo ? "Cuenta de ejemplo" : user.email}</span>
             <button className="btn btn-ghost" onClick={onLogout} aria-label="Cerrar sesión" title="Cerrar sesión">
               <Icon name="logout" size={15} />
             </button>
@@ -223,6 +223,12 @@ function Dashboard({ user, onLogout }) {
       </header>
 
       <main className={`page ${chatOpen ? "with-chat" : ""}`}>
+        {user.demo && (
+          <p className="notice demo-banner">
+            Estás en la <strong>cuenta de ejemplo</strong>: cartera ficticia con precios reales de Binance. Puedes probarlo todo, los
+            cambios se borran cada hora. <button className="link" onClick={onLogout}>Crear mi cuenta</button>
+          </p>
+        )}
         <div className="page-head">
           <div>
             <h1>{title}</h1>

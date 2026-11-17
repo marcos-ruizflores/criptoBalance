@@ -85,7 +85,8 @@ def evaluate_alerts(user: dict) -> List[dict]:
             )
             enriched = {**to_public(alert), "current_value": value}
             triggered.append(enriched)
-            send_email_alert(enriched, user.get("email"))
+            if not user.get("demo"):
+                send_email_alert(enriched, user.get("email"))
     return triggered
 
 

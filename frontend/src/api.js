@@ -102,3 +102,4 @@ export async function streamChat(messages, onEvent, signal) {
 
 export const signup = (payload) => request("/auth/signup", { method: "POST", json: payload });
 export const login = (payload) => request("/auth/login", { method: "POST", json: payload });
+export const demoLogin = () => request("/auth/demo", { method: "POST" });

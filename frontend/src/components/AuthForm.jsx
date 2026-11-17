@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { login, signup } from "../api";
+import { demoLogin, login, signup } from "../api";
 
 const EMPTY = { name: "", phone: "", email: "", password: "", confirmPassword: "" };
 
@@ -33,6 +33,19 @@ export default function AuthForm({ onSuccess, notice = "" }) {
   const switchMode = () => {
     setMode(isSignup ? "login" : "signup");
     setError("");
+  };
+
+  const [demoLoading, setDemoLoading] = useState(false);
+  const tryDemo = async () => {
+    setError("");
+    setDemoLoading(true);
+    try {
+      onSuccess?.(await demoLogin());
+    } catch (err) {
+      setError(readError(err));
+    } finally {
+      setDemoLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -125,8 +138,18 @@ export default function AuthForm({ onSuccess, notice = "" }) {
           <button className="btn btn-primary btn-block" type="submit" disabled={loading}>
             {loading ? "Un momento…" : isSignup ? "Crear cuenta" : "Entrar"}
           </button>
-          {slow && <p className="muted small">Despertando el servidor, la primera vez puede tardar hasta un minuto.</p>}
+          {(slow || demoLoading) && <p className="muted small">Despertando el servidor, la primera vez puede tardar hasta un minuto.</p>}
         </form>
+
+        {!isSignup && (
+          <div className="auth-demo">
+            <span className="auth-or">o</span>
+            <button type="button" className="btn btn-block" onClick={tryDemo} disabled={demoLoading || loading}>
+              {demoLoading ? "Preparando la demo…" : "Probar con una cuenta de ejemplo"}
+            </button>
+            <p className="muted small">Sin registrarte. Cartera ficticia con precios reales; se reinicia cada hora.</p>
+          </div>
+        )}
 
         <p className="auth-switch">
           {isSignup ? "¿Ya tienes cuenta? " : "¿No tienes cuenta? "}
