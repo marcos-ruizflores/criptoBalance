@@ -31,7 +31,8 @@ CHAT_DAILY_LIMIT = int(os.getenv("CHAT_DAILY_LIMIT", "40"))
 # General settings
 DEFAULT_QUOTE_ASSET = "USDT"
 FIAT_CURRENCY = "EUR"
-FIAT_RATE = 1.0  # 1 USDT = 1 EUR (rough approximation)
+# Only used if Binance can't give the live USDT/EUR rate
+FIAT_RATE = float(os.getenv("FIAT_RATE", "0.92"))
 
 # Email alerts go to the account's email. Leave these empty to disable them.
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")

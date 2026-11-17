@@ -2,10 +2,9 @@ from datetime import datetime
 from typing import List
 from bson import ObjectId
 from backend.db import alerts_col
-from backend.binance_client import get_price_for_asset
+from backend.binance_client import get_fiat_rate, get_price_for_asset
 from backend.config import (
     FIAT_CURRENCY,
-    FIAT_RATE,
     SMTP_HOST,
     SMTP_PORT,
     SMTP_USER,
@@ -68,7 +67,7 @@ def evaluate_alerts(user: dict) -> List[dict]:
                 price_quote, quote = get_price_for_asset(base)
             except Exception:
                 continue
-            conversion = 1.0 if quote.upper() == FIAT_CURRENCY.upper() else float(FIAT_RATE)
+            conversion = get_fiat_rate(quote)
             value = price_quote * conversion
         elif kind == "pnl_pct":
             item = items_by_asset.get(base)

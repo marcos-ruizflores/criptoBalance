@@ -1,8 +1,8 @@
 import logging
 from collections import defaultdict
 from backend.db import trades_col
-from backend.binance_client import get_price_for_asset
-from backend.config import DEFAULT_QUOTE_ASSET, FIAT_CURRENCY, FIAT_RATE
+from backend.binance_client import get_fiat_rate, get_price_for_asset
+from backend.config import DEFAULT_QUOTE_ASSET
 
 log = logging.getLogger("criptobalance")
 
@@ -69,7 +69,7 @@ def portfolio_summary(user_id: str):
                 }
             )
             continue
-        conversion_rate = 1.0 if quote_used.upper() == FIAT_CURRENCY.upper() else float(FIAT_RATE)
+        conversion_rate = get_fiat_rate(quote_used)
         current_price_fiat = current_price_quote * conversion_rate
         current_value_fiat = current_price_fiat * qty
         total_cost_fiat = pos["cost_fiat"]

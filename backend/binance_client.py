@@ -1,8 +1,13 @@
+import logging
 import time
+from datetime import datetime, timezone
 from threading import Lock
+from typing import Optional
 
 import requests
-from backend.config import DEFAULT_QUOTE_ASSET, FIAT_CURRENCY
+from backend.config import DEFAULT_QUOTE_ASSET, FIAT_CURRENCY, FIAT_RATE
+
+log = logging.getLogger("criptobalance")
 
 # data-api.binance.vision is Binance's public market-data host, meant for servers.
 # api.binance.com refuses requests from many cloud IPs (Render's included), so it's
@@ -14,6 +19,61 @@ BINANCE_HOSTS = ["https://data-api.binance.vision", "https://api.binance.com"]
 PRICE_TTL_S = 20
 _price_cache = {}
 _price_lock = Lock()
+
+
+# Stablecoins and plain dollars all count as USDT for the exchange rate
+_DOLLARS = {"USD": "USDT", "BUSD": "USDT", "FDUSD": "USDT"}
+FX_TTL_S = 300
+_fx_cache = {}
+
+
+def _day_close(symbol: str, when: datetime) -> float:
+    day = when.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
+    rows = _binance_get("/api/v3/klines", {"symbol": symbol, "interval": "1d", "startTime": int(day.timestamp() * 1000), "limit": 1})
+    if not rows:
+        raise ValueError(f"No hay datos de {symbol} para {day.date()}")
+    return float(rows[0][4])
+
+
+def get_fiat_rate(quote: str, when: Optional[datetime] = None) -> float:
+    """
+    How many FIAT_CURRENCY you get for 1 unit of `quote` (USDT -> about 0.92 EUR),
+    now or on the day of `when`. Never raises: falls back to FIAT_RATE from the config.
+    """
+    quote = _DOLLARS.get(quote.upper(), quote.upper())
+    fiat = FIAT_CURRENCY.upper()
+    if quote == fiat:
+        return 1.0
+    if when is not None and when.date() >= datetime.utcnow().date():
+        when = None
+    key = (quote, when.date() if when else None)
+    with _price_lock:
+        hit = _fx_cache.get(key)
+    # Past days never change, today's rate is refreshed every few minutes
+    if hit and (when is not None or time.monotonic() - hit[0] < FX_TTL_S):
+        return hit[1]
+
+    rate = None
+    for symbol, invert in ((f"{fiat}{quote}", True), (f"{quote}{fiat}", False)):
+        try:
+            if when is None:
+                raw = float(_binance_get("/api/v3/ticker/price", {"symbol": symbol})["price"])
+            else:
+                raw = _day_close(symbol, when)
+            rate = 1 / raw if invert else raw
+            break
+        except Exception as exc:
+            last_error = exc
+    if rate is None:
+        log.warning("no %s/%s rate, using FIAT_RATE=%s: %s", quote, fiat, FIAT_RATE, last_error)
+        return float(FIAT_RATE)
+    with _price_lock:
+        _fx_cache[key] = (time.monotonic(), rate)
+    return rate
+
+
+def to_fiat(amount: float, quote: str, when: Optional[datetime] = None) -> float:
+    return amount * get_fiat_rate(quote, when)
 
 
 def _binance_get(path: str, params: dict, timeout: float = 8):

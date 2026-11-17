@@ -12,7 +12,8 @@ from typing import Optional
 import anthropic
 
 from backend.chat_service import get_client
-from backend.config import CHAT_MODEL, FIAT_CURRENCY, FIAT_RATE
+from backend.binance_client import get_fiat_rate
+from backend.config import CHAT_MODEL, FIAT_CURRENCY
 from backend.trades_service import list_trades
 
 log = logging.getLogger("criptobalance")
@@ -128,8 +129,11 @@ def _clean(raw: dict, existing: list) -> dict:
 
         currency = (t.get("currency") or FIAT_CURRENCY).strip().upper()
         if currency in DOLLAR_LIKE and currency != FIAT_CURRENCY:
-            row["price"] = row["price"] * FIAT_RATE if row["price"] else None
-            row["total"] = row["total"] * FIAT_RATE if row["total"] else None
+            # Use the rate of the trade's own day when we know it
+            when = datetime.fromisoformat(row["date"]) if row["date"] else None
+            rate = get_fiat_rate(currency, when)
+            row["price"] = row["price"] * rate if row["price"] else None
+            row["total"] = row["total"] * rate if row["total"] else None
             row["flags"].append(f"converted:{currency}")
         elif currency != FIAT_CURRENCY:
             # e.g. ETH bought with BTC: we can't price it in EUR on our own

@@ -4,8 +4,8 @@ import csv
 from typing import Optional
 from bson import ObjectId
 from backend.db import trades_col
-from backend.binance_client import get_price_for_asset
-from backend.config import DEFAULT_QUOTE_ASSET, FIAT_RATE, FIAT_CURRENCY
+from backend.binance_client import get_fiat_rate, get_price_for_asset
+from backend.config import DEFAULT_QUOTE_ASSET, FIAT_CURRENCY
 
 
 def register_trade(
@@ -24,8 +24,10 @@ def register_trade(
     side = side.upper()
     base_symbol = base_symbol.upper()
     total_cost_fiat = total_cost_fiat if total_cost_fiat is not None else quantity * price_fiat
-    price_quote = price_fiat / FIAT_RATE
-    total_cost_quote = total_cost_fiat / FIAT_RATE
+    # The quote-currency figures are informational, at that day's rate
+    rate = get_fiat_rate(DEFAULT_QUOTE_ASSET, timestamp)
+    price_quote = price_fiat / rate
+    total_cost_quote = total_cost_fiat / rate
 
     trade = {
         "user_id": user_id,
@@ -38,7 +40,7 @@ def register_trade(
         "price_fiat": float(price_fiat),
         "timestamp": timestamp,
         "fiat_currency": FIAT_CURRENCY,
-        "fiat_rate_at_trade": float(FIAT_RATE),
+        "fiat_rate_at_trade": float(rate),
         "total_cost_quote": float(total_cost_quote),
         "total_cost_fiat": float(total_cost_fiat),
     }
@@ -78,7 +80,7 @@ def enrich_trade_with_market(trade: dict) -> dict:
     symbol = trade.get("symbol", "")
     base_asset = trade.get("base_asset") or symbol.removesuffix(DEFAULT_QUOTE_ASSET)
     quantity = float(trade.get("quantity", 0))
-    fx_rate = float(trade.get("fiat_rate_at_trade") or FIAT_RATE)
+    fx_rate = float(trade.get("fiat_rate_at_trade") or get_fiat_rate(DEFAULT_QUOTE_ASSET))
     total_cost_fiat = float(
         trade.get("total_cost_fiat")
         or trade.get("total_cost_quote", 0) * fx_rate
@@ -103,7 +105,7 @@ def enrich_trade_with_market(trade: dict) -> dict:
             "pnl_fiat": None,
             "pnl_pct": None,
         }
-    conversion_rate = 1.0 if quote_used.upper() == FIAT_CURRENCY.upper() else float(FIAT_RATE)
+    conversion_rate = get_fiat_rate(quote_used)
     current_price_fiat = current_price_quote * conversion_rate
     current_value_fiat = current_price_fiat * quantity
     pnl_fiat = current_value_fiat - total_cost_fiat
