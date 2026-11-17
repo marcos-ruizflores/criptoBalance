@@ -89,7 +89,20 @@ def enrich_trade_with_market(trade: dict) -> dict:
         or trade.get("price_quote", 0) * fx_rate
         or 0
     )
-    current_price_quote, quote_used = get_price_for_asset(base_asset)
+    try:
+        current_price_quote, quote_used = get_price_for_asset(base_asset)
+    except Exception:
+        # One coin without a price shouldn't take the whole list down: show it without market data
+        return {
+            **trade,
+            "base_asset": base_asset,
+            "price_fiat": price_fiat,
+            "total_cost_fiat": total_cost_fiat,
+            "current_price_fiat": None,
+            "current_value_fiat": None,
+            "pnl_fiat": None,
+            "pnl_pct": None,
+        }
     conversion_rate = 1.0 if quote_used.upper() == FIAT_CURRENCY.upper() else float(FIAT_RATE)
     current_price_fiat = current_price_quote * conversion_rate
     current_value_fiat = current_price_fiat * quantity

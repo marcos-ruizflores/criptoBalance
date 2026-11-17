@@ -94,12 +94,14 @@ function Dashboard({ user, onLogout }) {
   const showToast = useCallback((msg) => setToast(msg), []);
 
   const loadData = useCallback(async () => {
-    try {
-      const [t, p] = await Promise.all([fetchTrades(), fetchPortfolio()]);
-      setTrades(t);
-      setPortfolio(p);
-    } catch {
+    // Load both independently, so one failing call doesn't blank the whole page
+    const [t, p] = await Promise.allSettled([fetchTrades(), fetchPortfolio()]);
+    if (t.status === "fulfilled") setTrades(t.value);
+    if (p.status === "fulfilled") setPortfolio(p.value);
+    if (t.status === "rejected" && p.status === "rejected") {
       setToast("No se pudo conectar con el servidor.");
+    } else if (t.status === "rejected" || p.status === "rejected") {
+      setToast("Algunos datos no se han podido cargar. Prueba a actualizar en un momento.");
     }
   }, []);
 

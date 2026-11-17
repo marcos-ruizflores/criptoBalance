@@ -1,7 +1,16 @@
+import time
+from threading import Lock
+
 import requests
 from backend.config import DEFAULT_QUOTE_ASSET, FIAT_CURRENCY
 
 BINANCE_BASE_URL = "https://api.binance.com"
+
+# Prices are reused for a short while: a page load asks for the same coins many times
+# (once per trade plus the portfolio), and Binance rate-limits bursts.
+PRICE_TTL_S = 20
+_price_cache = {}
+_price_lock = Lock()
 
 
 def get_spot_price(symbol: str) -> float:
@@ -10,7 +19,7 @@ def get_spot_price(symbol: str) -> float:
     Example: 'BTCUSDT'
     """
     url = f"{BINANCE_BASE_URL}/api/v3/ticker/price"
-    response = requests.get(url, params={"symbol": symbol})
+    response = requests.get(url, params={"symbol": symbol}, timeout=8)
     response.raise_for_status()
     data = response.json()
     return float(data["price"])
@@ -44,8 +53,20 @@ def _symbol_candidates(base_asset: str):
 def get_price_for_asset(base_asset: str):
     """
     Returns (price, quote) for an asset (e.g. BTC -> (BTC/USDT price, 'USDT')).
-    Tries a few common pairs until one works.
+    Tries a few common pairs until one works. Results are cached for PRICE_TTL_S.
     """
+    key = base_asset.upper()
+    with _price_lock:
+        hit = _price_cache.get(key)
+    if hit and time.monotonic() - hit[0] < PRICE_TTL_S:
+        return hit[1]
+    result = _fetch_price_for_asset(key)
+    with _price_lock:
+        _price_cache[key] = (time.monotonic(), result)
+    return result
+
+
+def _fetch_price_for_asset(base_asset: str):
     last_error = None
     for symbol, quote in _symbol_candidates(base_asset):
         try:
